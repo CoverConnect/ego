@@ -1,12 +1,5 @@
 #!/bin/bash
 
-set -eux
-
-#mkdir /etc/gcrypt
-#echo all >> /etc/gcrypt/hwf.deny
-#apt-get update
-
-
 sudo apt-get update
 
 # install llvm
