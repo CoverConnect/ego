@@ -22,7 +22,8 @@ sudo cd libbpf/src && sudo make install
 
 # build bpftool
 git clone --recurse-submodules https://github.com/libbpf/bpftool.git
-sudo ln -s /usr/bin/clang-17 /usr/bin/clang
-sudo ln -s /usr/bin/llvm-strip-17 /usr/bin/llvm-strip
 cd ./bpftool/src && sudo make install
 
+sudo ln -s /usr/include/x86_64-linux-gnu/asm /usr/include/asm
+sudo ln -s /usr/bin/clang-17 /usr/bin/clang
+sudo ln -s /usr/bin/llvm-strip-17 /usr/bin/llvm-strip
