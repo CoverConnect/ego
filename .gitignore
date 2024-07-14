@@ -1,4 +1,5 @@
 workspace/***
-.vagrant/***
 *.log
 .DS_Store
+*.o
+ebpf/sample/sample
