@@ -1,6 +1,10 @@
 package main
 
-import "time"
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
 
 func main() {
 
@@ -13,7 +17,8 @@ func main() {
 
 //go:noinline
 func target(a, b int) int {
-
-	return a + b
+	c := rand.Intn(10)
+	fmt.Println("value %d,%d", a+c, b)
+	return a + b + c
 
 }

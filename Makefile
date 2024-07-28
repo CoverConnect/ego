@@ -1,6 +1,15 @@
 
-
 all:
+	go generate && go build
+
+dump-map:
+	sudo bpftool map dump name arg_map
+log:
+	sudo bpftool prog tracelog
+
+
+
+run-env:
 	qemu-system-x86_64 \
 	-accel hvf           \
 	-display none                                          \
@@ -12,7 +21,7 @@ all:
 	-device e1000,netdev=net1           \
 	-netdev user,id=net1,hostfwd=tcp::5555-:22\
 
-build:
+build-env:
 	curl https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso?_ga=2.142890165.1432353644.1720835055-855202174.1719714410&_gl=1*1w1zd4n*_gcl_au*MTMxNzc0NzY3NS4xNzIwODM1MDgx -o ubuntu22_24.iso \
 	qemu-system-x86_64 \
 	-accel hvf                                                    \
