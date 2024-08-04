@@ -7,6 +7,8 @@ dump-map:
 log:
 	sudo bpftool prog tracelog
 
+test:
+	./tracee/tracee
 
 
 run-env:

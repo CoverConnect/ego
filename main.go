@@ -1,40 +1,22 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"runtime"
-	"time"
-	"unsafe"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/go-delve/delve/pkg/proc"
 )
 
 var FnName = "main.target"
 var binaryPath = "/home/backman/ego/tracee/tracee"
-
-// function_parameter_t tracks function_parameter_t from function_vals.bpf.h
-type function_parameter_t struct {
-	kind      uint32
-	size      uint32
-	offset    int32
-	in_reg    bool
-	n_pieces  int32
-	reg_nums  [6]int32
-	daddr     uint64
-	val       [0x30]byte
-	deref_val [0x30]byte
-}
-
-// function_parameter_list_t tracks function_parameter_list_t from function_vals.bpf.h
-type function_parameter_list_t struct {
-	fn_addr      uint64
-	n_parameters uint32
-	params       [6]function_parameter_t
-}
 
 func main() {
 
@@ -59,7 +41,15 @@ func main() {
 	// Load the compiled eBPF ELF and load it into the kernel.
 	var objs hookObjects
 	if err := loadHookObjects(&objs, nil); err != nil {
-		log.Fatal("Loading eBPF objects:", err)
+
+		var verr *ebpf.VerifierError
+		if errors.As(err, &verr) {
+			fmt.Printf("%+v\n", verr)
+			return
+		}
+
+		//log.Fatalf("load program %w", err)
+
 	}
 	defer objs.Close()
 
@@ -69,53 +59,86 @@ func main() {
 		log.Fatalf("open exec fail %w", err)
 	}
 
-	// uprobe to function
+	log.Printf("=== start ===\n")
+
+	// Get Function Dwarf Info
+	for _, fn := range fns {
+		_, err := proc.GetArgumentByFunc(bi, fn)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// send the tracing address
+		/*
+			err = objs.ContextMap.Update(fn.Entry,)
+			if err != nil {
+				return err
+			}
+		*/
+	}
+
+	// uprobe to function (trace)
 	up, err := ex.Uprobe(FnName, objs.UprobeHook, nil)
 	if err != nil {
 		log.Fatal("set uprobe error", err)
 	}
 	defer up.Close()
 
-	log.Printf("=== start ===\n")
-
-	//locate a function variables and send to ebpf maps
-	for _, fn := range fns {
-		args, err := proc.GetArgumentByFunc(bi, fn)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// convert to our type
-		// 暫時
-		fnParaList := &function_parameter_list_t{n_parameters: uint32(len(args))}
-		for idx, a := range args {
-			para := function_parameter_t{}
-
-			para.kind = uint32(a.Kind)
-			para.size = uint32(a.Size)
-			para.offset = int32(a.Offset)
-
-			if a.InReg {
-				para.in_reg = true
-				para.n_pieces = int32(len(a.Pieces))
-				for i := range a.Pieces {
-					if i > 5 {
-						break
-					}
-					para.reg_nums[i] = int32(a.Pieces[i])
-				}
-			}
-			fnParaList.params[idx] = para
-		}
-
-		if err := objs.ArgMap.Update(unsafe.Pointer(&fn.Entry), unsafe.Pointer(fnParaList), ebpf.UpdateAny); err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(args)
+	rd, err := ringbuf.NewReader(objs.hookMaps.Events)
+	if err != nil {
+		log.Fatalf("opening ringbuf reader: %s", err)
 	}
+	defer rd.Close()
 
+	var fnCtx hookFunctionContextT
 	for {
-		time.Sleep(1 * time.Second)
+		record, err := rd.Read()
+		if err != nil {
+			if errors.Is(err, ringbuf.ErrClosed) {
+				log.Println("received signal, exiting..")
+				return
+			}
+			log.Printf("reading from reader: %s", err)
+			continue
+		}
+
+		// Parse the ringbuf event entry into a bpfEvent structure.
+		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.BigEndian, &fnCtx); err != nil {
+			log.Printf("parsing ringbuf event: %s", err)
+			continue
+		}
+		PrintCtx("hit event: ", fnCtx)
+
+		// retrieve variable information
+
 	}
+
+}
+
+func PrintCtx(head string, ctx hookFunctionContextT) {
+	fmt.Println(head)
+	fmt.Printf("FnAddr %x\n", ctx.FnAddr)
+
+	fmt.Printf("ax: %x ", ctx.Ax)
+	fmt.Printf("bx: %x ", ctx.Bx)
+	fmt.Printf("cx: %x ", ctx.Cx)
+	fmt.Printf("di: %x ", ctx.Dx)
+
+	fmt.Printf("ip: %x ", ctx.Ip)
+	fmt.Printf("sp: %x ", ctx.Sp)
+	fmt.Printf("bp: %x ", ctx.Bp)
+	fmt.Printf("ss: %x ", ctx.Ss)
+	fmt.Printf("si: %x ", ctx.Si)
+	fmt.Printf("di: %x ", ctx.Di)
+	fmt.Printf("cs: %x ", ctx.Cs)
+
+	fmt.Printf("r8: %x ", ctx.R8)
+	fmt.Printf("r9: %x ", ctx.R9)
+	fmt.Printf("r10: %x ", ctx.R10)
+	fmt.Printf("r11: %x ", ctx.R11)
+	fmt.Printf("r12: %x ", ctx.R12)
+	fmt.Printf("r13: %x ", ctx.R13)
+	fmt.Printf("r14: %x ", ctx.R14)
+	fmt.Printf("r15: %x ", ctx.R15)
 
 }

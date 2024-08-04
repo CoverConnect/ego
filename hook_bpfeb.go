@@ -12,23 +12,28 @@ import (
 	"github.com/cilium/ebpf"
 )
 
-type hookFunctionParameterListT struct {
-	FnAddr       uint64
-	N_parameters uint32
-	_            [4]byte
-	Params       [6]struct {
-		Kind     uint32
-		Size     uint32
-		Offset   int32
-		InReg    bool
-		_        [3]byte
-		N_pieces int32
-		RegNums  [6]int32
-		_        [4]byte
-		Daddr    uint64
-		Val      [48]int8
-		DerefVal [48]int8
-	}
+type hookFunctionContextT struct {
+	FnAddr uint64
+	R15    uint64
+	R14    uint64
+	R13    uint64
+	R12    uint64
+	Bp     uint64
+	Bx     uint64
+	R11    uint64
+	R10    uint64
+	R9     uint64
+	R8     uint64
+	Ax     uint64
+	Cx     uint64
+	Dx     uint64
+	Si     uint64
+	Di     uint64
+	Ip     uint64
+	Cs     uint64
+	Flags  uint64
+	Sp     uint64
+	Ss     uint64
 }
 
 // loadHook returns the embedded CollectionSpec for hook.
@@ -79,7 +84,8 @@ type hookProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type hookMapSpecs struct {
-	ArgMap *ebpf.MapSpec `ebpf:"arg_map"`
+	ContextMap *ebpf.MapSpec `ebpf:"context_map"`
+	Events     *ebpf.MapSpec `ebpf:"events"`
 }
 
 // hookObjects contains all objects after they have been loaded into the kernel.
@@ -101,12 +107,14 @@ func (o *hookObjects) Close() error {
 //
 // It can be passed to loadHookObjects or ebpf.CollectionSpec.LoadAndAssign.
 type hookMaps struct {
-	ArgMap *ebpf.Map `ebpf:"arg_map"`
+	ContextMap *ebpf.Map `ebpf:"context_map"`
+	Events     *ebpf.Map `ebpf:"events"`
 }
 
 func (m *hookMaps) Close() error {
 	return _HookClose(
-		m.ArgMap,
+		m.ContextMap,
+		m.Events,
 	)
 }
 
