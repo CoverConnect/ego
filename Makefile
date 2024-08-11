@@ -1,5 +1,6 @@
 
-all:
+all: 
+	make tracee
 	go generate && go build
 
 dump-map:
@@ -7,8 +8,8 @@ dump-map:
 log:
 	sudo bpftool prog tracelog
 
-test:
-	./tracee/tracee
+tracee:
+	cd ./tracee && go build .
 
 
 run-env:
