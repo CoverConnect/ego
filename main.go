@@ -6,37 +6,55 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"runtime"
+	"time"
 
+	"github.com/Rookout/GoSDK/pkg/config"
+	"github.com/Rookout/GoSDK/pkg/services/collection/registers"
+	"github.com/Rookout/GoSDK/pkg/services/collection/variable"
+	"github.com/Rookout/GoSDK/pkg/services/instrumentation/binary_info"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
-	"github.com/go-delve/delve/pkg/proc"
 )
 
-var FnName = "main.target"
+var fnName = "main.target"
 var binaryPath = "/home/backman/ego/tracee/tracee"
 
+var CtxChan chan hookFunctionContextT = make(chan hookFunctionContextT, 0)
+
 func main() {
-
-	// load binary
-	bi := proc.NewBinaryInfo(runtime.GOOS, runtime.GOARCH)
-	if err := bi.LoadBinaryInfo(binaryPath, 0, nil); err != nil {
-		log.Fatal(err)
-	}
-
-	// Get main.target Info
-	fns, err := bi.FindFunction(FnName)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	//use ebpf
 	// Remove resource limits for kernels <5.11.
 	if err := rlimit.RemoveMemlock(); err != nil {
 		log.Fatal("Removing memlock:", err)
 	}
+
+	// load binary use delve
+	/*
+		bi := proc.NewBinaryInfo(runtime.GOOS, runtime.GOARCH)
+		if err := bi.LoadBinaryInfo(binaryPath, 0, nil); err != nil {
+			log.Fatal(err)
+		}
+
+		// Get main.target Info
+		fns, err := bi.FindFunction(fnName)
+		if err != nil {
+			log.Fatal(err)
+		}
+	*/
+
+	// use gosdk
+	bi := binary_info.NewBinaryInfo()
+	exec := binaryPath
+
+	err := bi.LoadBinaryInfo(exec, binary_info.GetEntrypoint(exec), nil)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	bi.Dwarf = bi.Images[0].Dwarf
 
 	// Load the compiled eBPF ELF and load it into the kernel.
 	var objs hookObjects
@@ -47,9 +65,7 @@ func main() {
 			fmt.Printf("%+v\n", verr)
 			return
 		}
-
-		//log.Fatalf("load program %w", err)
-
+		log.Fatalf("load program %v", err)
 	}
 	defer objs.Close()
 
@@ -59,39 +75,35 @@ func main() {
 		log.Fatalf("open exec fail %w", err)
 	}
 
-	log.Printf("=== start ===\n")
-
-	// Get Function Dwarf Info
-	for _, fn := range fns {
-		_, err := proc.GetArgumentByFunc(bi, fn)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// send the tracing address
-		/*
-			err = objs.ContextMap.Update(fn.Entry,)
-			if err != nil {
-				return err
-			}
-		*/
-	}
-
 	// uprobe to function (trace)
-	up, err := ex.Uprobe(FnName, objs.UprobeHook, nil)
+	up, err := ex.Uprobe(fnName, objs.UprobeHook, nil)
 	if err != nil {
-		log.Fatal("set uprobe error", err)
+		log.Fatal("set uprobe error: ", err)
 	}
 	defer up.Close()
 
-	rd, err := ringbuf.NewReader(objs.hookMaps.Events)
+	// go collector
+	go ReadPerf(objs.hookMaps.Events)
+	go Collect(bi)
+
+	log.Printf("=== start ===\n")
+	for {
+		fmt.Printf(".")
+		time.Sleep(1 * time.Second)
+	}
+
+}
+
+func ReadPerf(event *ebpf.Map) {
+	var fnCtx hookFunctionContextT
+
+	rd, err := ringbuf.NewReader(event)
 	if err != nil {
 		log.Fatalf("opening ringbuf reader: %s", err)
 	}
 	defer rd.Close()
-
-	var fnCtx hookFunctionContextT
 	for {
+
 		record, err := rd.Read()
 		if err != nil {
 			if errors.Is(err, ringbuf.ErrClosed) {
@@ -103,16 +115,14 @@ func main() {
 		}
 
 		// Parse the ringbuf event entry into a bpfEvent structure.
-		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.BigEndian, &fnCtx); err != nil {
+		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &fnCtx); err != nil {
 			log.Printf("parsing ringbuf event: %s", err)
 			continue
 		}
-		PrintCtx("hit event: ", fnCtx)
 
-		// retrieve variable information
+		CtxChan <- fnCtx
 
 	}
-
 }
 
 func PrintCtx(head string, ctx hookFunctionContextT) {
@@ -141,4 +151,84 @@ func PrintCtx(head string, ctx hookFunctionContextT) {
 	fmt.Printf("r14: %x ", ctx.R14)
 	fmt.Printf("r15: %x ", ctx.R15)
 
+	fmt.Println("")
+
+}
+
+func ConvertCtxToReg(ctx hookFunctionContextT) *registers.OnStackRegisters {
+	regs := &registers.OnStackRegisters{}
+	regs.RAX = uintptr(ctx.Ax)
+	regs.RBX = uintptr(ctx.Bx)
+	regs.RBP = uintptr(ctx.Bp)
+	regs.RCX = uintptr(ctx.Cx)
+	regs.RDX = uintptr(ctx.Dx)
+	regs.RDI = uintptr(ctx.Di)
+
+	regs.RIP = uintptr(ctx.Ip)
+	regs.RSP = uintptr(ctx.Sp)
+	regs.RSI = uintptr(ctx.Si)
+
+	regs.R9 = uintptr(ctx.R9)
+	regs.R10 = uintptr(ctx.R10)
+	regs.R11 = uintptr(ctx.R11)
+	regs.R12 = uintptr(ctx.R12)
+	regs.R13 = uintptr(ctx.R13)
+	regs.R14 = uintptr(ctx.R14)
+	regs.R15 = uintptr(ctx.R15)
+
+	return regs
+}
+
+func Collect(bi *binary_info.BinaryInfo) {
+
+	fn, _ := bi.LookupFunc[fnName]
+
+	config := config.ObjectDumpConfig{
+		MaxDepth:           0,
+		MaxWidth:           100,
+		MaxCollectionDepth: 0,
+		MaxString:          64 * 1024,
+	}
+
+	vCache := variable.NewVariablesCache()
+
+	for ctx := range CtxChan {
+		PrintCtx("Collect: ", ctx)
+		regs := ConvertCtxToReg(ctx)
+
+		variableLocators, err := variable.GetVariableLocators(regs.PC(), 0, fn, bi)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		// retrieve variable information
+		for _, varLocator := range variableLocators {
+			variable := locateAndLoadVariable(regs, varLocator, config, vCache)
+			PrintVariable(variable)
+		}
+		fmt.Println("")
+	}
+}
+func locateAndLoadVariable(regs registers.Registers, varLocator *variable.VariableLocator, objectDumpConfig config.ObjectDumpConfig, vCache *variable.VariablesCache) (v *variable.Variable) {
+
+	v = varLocator.Locate(regs, 0, vCache, objectDumpConfig)
+	if name := v.Name; len(name) > 1 && name[0] == '&' {
+		v = v.MaybeDereference()
+		if v.Addr == 0 && v.Unreadable == nil {
+			v.Unreadable = fmt.Errorf("no address for escaped variable")
+		}
+		v.Name = name[1:]
+	}
+
+	if v.ObjectDumpConfig.ShouldTailor {
+		v.UpdateObjectDumpConfig(config.TailorObjectDumpConfig(v.Kind, int(v.Len)))
+	}
+
+	v.LoadValue()
+	return v
+}
+
+func PrintVariable(variable *variable.Variable) {
+	fmt.Printf("Name: %s, Value: %s\n", variable.Name, variable.Value.ExactString())
 }

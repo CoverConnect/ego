@@ -21,7 +21,7 @@ func main() {
 //go:noinline
 func target(a, b int) int {
 	c := rand.Intn(10)
-	fmt.Println("value %d,%d", a, b)
+	fmt.Printf("value %d,%d\n", a, b)
 	return a + b + c
 
 }
