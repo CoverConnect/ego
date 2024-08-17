@@ -1166,6 +1166,10 @@ func (v *Variable) structMember(memberName string) (*Variable, error) {
 	return nil, fmt.Errorf("%s has no member %s", vname, memberName)
 }
 
+func ReadVarEntry(entry *godwarf.Tree, image *Image) (name string, typ godwarf.Type, err error) {
+	return readVarEntry(entry, image)
+}
+
 func readVarEntry(entry *godwarf.Tree, image *Image) (name string, typ godwarf.Type, err error) {
 	name, ok := entry.Val(dwarf.AttrName).(string)
 	if !ok {

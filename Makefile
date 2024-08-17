@@ -4,7 +4,7 @@ all:
 	go generate && go build
 
 dump-map:
-	sudo bpftool map dump name arg_map
+	sudo bpftool map dump name context_map
 log:
 	sudo bpftool prog tracelog
 

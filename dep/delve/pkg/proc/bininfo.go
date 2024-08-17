@@ -541,6 +541,14 @@ func (fn *Function) instRange() [2]int {
 	return inst
 }
 
+func (fn *Function) GetDwarfTree() (*godwarf.Tree, error) {
+	return fn.cu.image.getDwarfTree(fn.offset)
+}
+
+func (fn *Function) GetImage() *Image {
+	return fn.cu.image
+}
+
 // PackageName returns the package part of the symbol name,
 // or the empty string if there is none.
 // Borrowed from $GOROOT/debug/gosym/symtab.go
