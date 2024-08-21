@@ -1,16 +1,12 @@
 
 all: 
-	make tracee
+	cd ./tracee && go build .
 	go generate && go build
 
 dump-map:
 	sudo bpftool map dump name context_map
 log:
 	sudo bpftool prog tracelog
-
-tracee:
-	cd ./tracee && go build .
-
 
 run-env:
 	qemu-system-x86_64 \

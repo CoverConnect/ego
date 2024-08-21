@@ -9,12 +9,14 @@ import (
 	"log"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 	"unsafe"
 
 	"github.com/Rookout/GoSDK/pkg/config"
 	"github.com/Rookout/GoSDK/pkg/services/collection/registers"
 	"github.com/Rookout/GoSDK/pkg/services/collection/variable"
+	"github.com/Rookout/GoSDK/pkg/services/instrumentation/binary_info"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
@@ -24,12 +26,17 @@ import (
 	"github.com/go-delve/delve/pkg/proc"
 )
 
-var fnName = "main.target"
-var binaryPath = "/home/backman/ego/tracee/tracee"
+var binaryPath = "/root/ego/tracee/tracee"
 
 var CtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 0)
 
 func main() {
+
+	//use ebpf
+	// Remove resource limits for kernels <5.11.
+	if err := rlimit.RemoveMemlock(); err != nil {
+		log.Fatal("Removing memlock:", err)
+	}
 
 	// open program
 	ex, err := link.OpenExecutable(binaryPath)
@@ -37,11 +44,26 @@ func main() {
 		log.Fatalf("open exec fail %w", err)
 	}
 
+	//*************** we need to merge two bi into one*************************
+
 	// load binary use delve
 	bi := proc.NewBinaryInfo(runtime.GOOS, runtime.GOARCH)
 	if err := bi.LoadBinaryInfo(binaryPath, 0, nil); err != nil {
 		log.Fatal(err)
 	}
+
+	// use gosdk
+	rbi := binary_info.NewBinaryInfo()
+	exec := binaryPath
+
+	err = rbi.LoadBinaryInfo(exec, binary_info.GetEntrypoint(exec), nil)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	rbi.Dwarf = rbi.Images[0].Dwarf
+
+	//*************** we need to merge two bi into one*************************
 
 	// Load the compiled eBPF ELF and load it into the kernel.
 	var objs hookObjects
@@ -56,28 +78,26 @@ func main() {
 	}
 	defer objs.Close()
 
-	// prepare memory address to ebpf if any
-	SendArgsCollectInfo(objs, bi, fnName)
+	for _, f := range GetFunctionByPrefix(bi, "main") {
+		// prepare memory address to ebpf if any
+		if err := SendArgsCollectInfo(objs, bi, f.Name); err != nil {
+			fmt.Printf("%+v\n", err)
 
-	// ******************************
-	// for unprivilege debug purpose
-	// We uprobe after everything is ready
-	// *****************************
-	//use ebpf
-	// Remove resource limits for kernels <5.11.
-	if err := rlimit.RemoveMemlock(); err != nil {
-		log.Fatal("Removing memlock:", err)
+			return
+		}
+
+		// uprobe to function (trace)
+		up, err := ex.Uprobe(f.Name, objs.UprobeHook, nil)
+		if err != nil {
+			log.Printf("set uprobe error: ", err)
+			continue
+		}
+		defer up.Close()
 	}
-	// uprobe to function (trace)
-	up, err := ex.Uprobe(fnName, objs.UprobeHook, nil)
-	if err != nil {
-		log.Fatal("set uprobe error: ", err)
-	}
-	defer up.Close()
 
 	// go collector
 	go ReadPerf(objs.hookMaps.Events)
-	go Collect(bi)
+	go Collect(bi, rbi)
 
 	log.Printf("=== start ===\n")
 	for {
@@ -85,6 +105,18 @@ func main() {
 		time.Sleep(1 * time.Second)
 	}
 
+}
+
+func GetFunctionByPrefix(bi *proc.BinaryInfo, prefix string) []proc.Function {
+	fns := make([]proc.Function, 0)
+	for _, f := range bi.Functions {
+		if strings.HasPrefix(f.Name, prefix) {
+			fns = append(fns, f)
+		}
+
+	}
+
+	return fns
 }
 
 func SendArgsCollectInfo(obj hookObjects, bi *proc.BinaryInfo, fnName string) error {
@@ -108,14 +140,15 @@ func SendArgsCollectInfo(obj hookObjects, bi *proc.BinaryInfo, fnName string) er
 	var args []parameter
 	for _, entry := range varEntries {
 		image := fn.GetImage()
-		_, dt, err := proc.ReadVarEntry(entry.Tree, image)
+		name, dt, err := proc.ReadVarEntry(entry.Tree, image)
 		if err != nil {
 			return err
 		}
 
 		offset, pieces, _, err := bi.Location(entry, dwarf.AttrLocation, fn.Entry, op.DwarfRegisters{}, nil)
 		if err != nil {
-			return err
+			log.Printf("%w", err)
+			continue
 		}
 		paramPieces := make([]int, 0, len(pieces))
 		for _, piece := range pieces {
@@ -127,6 +160,7 @@ func SendArgsCollectInfo(obj hookObjects, bi *proc.BinaryInfo, fnName string) er
 		offset += int64(bi.Arch.PtrSize())
 
 		args = append(args, parameter{
+			Name:   name,
 			Offset: offset,
 			Size:   dt.Size(),
 			Kind:   dt.Common().ReflectKind,
@@ -161,6 +195,7 @@ func CreateHookFunctionParameterListT(args []parameter) (*hookFunctionParameterL
 	}
 
 	paraList := &hookFunctionParameterListT{}
+	paraList.N_parameters = uint32(len(args))
 
 	for idx, arg := range args {
 		paraList.Params[idx].Offset = int32(arg.Offset)
@@ -227,7 +262,16 @@ func PrintCtx(head string, ctx hookFunctionParameterListT) {
 	fmt.Printf("r13: %x ", ctx.Ctx.R13)
 	fmt.Printf("r14: %x ", ctx.Ctx.R14)
 	fmt.Printf("r15: %x ", ctx.Ctx.R15)
+	fmt.Println("")
 
+	//print param
+	fmt.Println("=========")
+	fmt.Println("para")
+	fmt.Println("=========")
+
+	for idx := 0; idx < int(ctx.N_parameters); idx++ {
+		fmt.Printf("%d. Mem Val: %v\n", idx, ctx.Params[idx].Val)
+	}
 	fmt.Println("")
 
 }
@@ -256,23 +300,42 @@ func ConvertCtxToReg(ctx hookFunctionParameterListT) *registers.OnStackRegisters
 	return regs
 }
 
-func Collect(bi *proc.BinaryInfo) {
+func Collect(bi *proc.BinaryInfo, rbi *binary_info.BinaryInfo) {
 
 	// debug config
-	_ = config.ObjectDumpConfig{
-		MaxDepth:           0,
-		MaxWidth:           100,
-		MaxCollectionDepth: 0,
-		MaxString:          64 * 1024,
-	}
-
+	/*
+		config := config.ObjectDumpConfig{
+			MaxDepth:           0,
+			MaxWidth:           100,
+			MaxCollectionDepth: 0,
+			MaxString:          64 * 1024,
+		}
+		vCache := variable.NewVariablesCache()
+	*/
 	for ctx := range CtxChan {
-		PrintCtx("Collect: ", ctx)
-		//regs := ConvertCtxToReg(ctx)
+		// find back function by pc
+		fn := rbi.PCToFunc(ctx.FnAddr)
+		fmt.Println(fn.Name)
+		/*
+			PrintCtx("Collect: ", ctx)
+			regs := ConvertCtxToReg(ctx)
 
-		fmt.Println("")
+			variableLocators, err := variable.GetVariableLocators(regs.PC(), 0, fn, rbi)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			// retrieve variable information
+			for _, varLocator := range variableLocators {
+				variable := locateAndLoadVariable(regs, varLocator, config, vCache)
+				PrintVariable(variable)
+			}
+			fmt.Println("")
+		*/
 	}
 }
+
 func locateAndLoadVariable(regs registers.Registers, varLocator *variable.VariableLocator, objectDumpConfig config.ObjectDumpConfig, vCache *variable.VariablesCache) (v *variable.Variable) {
 
 	v = varLocator.Locate(regs, 0, vCache, objectDumpConfig)
@@ -293,5 +356,9 @@ func locateAndLoadVariable(regs registers.Registers, varLocator *variable.Variab
 }
 
 func PrintVariable(variable *variable.Variable) {
-	fmt.Printf("Name: %s, Value: %s\n", variable.Name, variable.Value.ExactString())
+	if variable.Value != nil {
+		fmt.Printf("Name: %s, Value: %s\n", variable.Name, variable.Value.String())
+	} else {
+		fmt.Printf("Name: %s, Value maybe in stack\n", variable.Name)
+	}
 }
