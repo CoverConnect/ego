@@ -1,7 +1,8 @@
 
 all: 
 	cd ./tracee && go build .
-	go generate && go build
+	cd ./pkg/instrument go generate
+	go build
 
 dump-map:
 	sudo bpftool map dump name context_map

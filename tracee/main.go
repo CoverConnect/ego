@@ -12,7 +12,7 @@ type receiver struct {
 }
 
 //go:noinline
-func (r receiver) target(a, b int, c string) int {
+func (r receiver) target1(a, b int, c string) int {
 	fmt.Printf("value %d,%d %s| f1, f2: %d, %d \n", a, b, c, r.f1, r.f2)
 	target2()
 	target3()
@@ -42,7 +42,7 @@ func main() {
 		a := rand.Intn(10)
 		b := rand.Intn(10)
 		str := string("hello")
-		r.target(a, b, str)
+		r.target1(a, b, str)
 	}
 
 }
