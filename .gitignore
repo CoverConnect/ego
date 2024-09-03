@@ -1,0 +1,8 @@
+workspace/***
+*.log
+.DS_Store
+*.o
+ebpf/sample/sample
+ego
+tracee/***
+hook_*
