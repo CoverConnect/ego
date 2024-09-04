@@ -1,6 +1,7 @@
 //go:build ignore
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
+#include<bpf/bpf_core_read.h>
 
 #define STRING_KIND 24
 #define variable_num 6
@@ -94,6 +95,24 @@ struct
     __uint(max_entries, BPF_MAX_VAR_SIZ);
 } events SEC(".maps");
 
+__always_inline
+int get_goroutine_id(function_parameter_list_t *parsed_args) {
+    struct task_struct *task;
+    size_t g_addr;
+    __u64  goid;
+
+    // Get the current task.
+    task = (struct task_struct *)bpf_get_current_task();
+    // Get the Goroutine ID which is stored in thread local storage.
+    bpf_probe_read_user(&g_addr, sizeof(void *), (void*)(BPF_CORE_READ(task, thread.fsbase)+parsed_args->g_addr_offset));
+    bpf_probe_read_user(&goid, sizeof(void *), (void*)(g_addr+parsed_args->goid_offset));
+    parsed_args->goroutine_id = goid;
+
+    return 1;
+}
+
+
+
 __always_inline void collect_stack_value(function_parameter_list_t *paraList)
 {
 
@@ -147,6 +166,18 @@ int uprobe_hook(struct pt_regs *ctx)
         bpf_printk("No enough ringbuf for collectedParaList");
         return 1;
     }
+    //get goid
+    collectedParaList->g_addr_offset = paraLlistTemplate->g_addr_offset;
+    collectedParaList->goid_offset = paraLlistTemplate->goid_offset;
+    
+
+    if (!get_goroutine_id(collectedParaList)) {
+        bpf_ringbuf_discard(paraLlistTemplate, 0);
+        return 1;
+    }
+
+
+
     // prepare collected information
     collectedParaList->n_parameters = paraLlistTemplate->n_parameters;
 

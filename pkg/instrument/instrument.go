@@ -9,6 +9,7 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
+	"github.com/go-delve/delve/pkg/dwarf/godwarf"
 	"github.com/go-delve/delve/pkg/proc"
 )
 
@@ -82,14 +83,37 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 		log.Fatalf("open exec fail %w", err)
 	}
 
+	//goid offset
+	typ, err := i.bi.FindType("runtime.g")
+	if err != nil {
+		return
+	}
+	var goidOffset int64
+	switch t := typ.(type) {
+	case *godwarf.StructType:
+		for _, field := range t.Field {
+			if field.Name == "goid" {
+				goidOffset = field.ByteOffset
+				break
+			}
+		}
+	}
+	// heavy depend on the platform
+	gOffset, err := i.bi.GStructOffset(nil)
+	if err != nil {
+		fmt.Printf("%+v\n", err)
+		return
+	}
+
 	uprobes := make([]link.Link, 0)
 	for _, f := range GetFunctionByPrefix(i.bi, prefix) {
 		params, err := GetFunctionParameter(i.bi, f)
+
 		if err != nil {
 			fmt.Printf("%+v\n", err)
 			return
 		}
-		if err := sendParamToHook(i.hookObj, f.Entry, params); err != nil {
+		if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, gOffset); err != nil {
 			fmt.Printf("%+v\n", err)
 			return
 		}
