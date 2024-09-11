@@ -60,8 +60,11 @@ typedef struct function_context
 typedef struct function_parameter_list
 {
     unsigned int goid_offset; // Offset of the `goid` struct member.
+    unsigned int parent_goid_offset; // Offset of the `goid` struct member.
+
     long long g_addr_offset;  // Offset of the Goroutine struct from the TLS segment.
     int goroutine_id;
+    int parent_goroutine_id;
 
     unsigned long long int fn_addr;
     bool is_ret;
@@ -100,13 +103,18 @@ int get_goroutine_id(function_parameter_list_t *parsed_args) {
     struct task_struct *task;
     size_t g_addr;
     __u64  goid;
+    __u64  parent_goid;
+
 
     // Get the current task.
     task = (struct task_struct *)bpf_get_current_task();
     // Get the Goroutine ID which is stored in thread local storage.
     bpf_probe_read_user(&g_addr, sizeof(void *), (void*)(BPF_CORE_READ(task, thread.fsbase)+parsed_args->g_addr_offset));
     bpf_probe_read_user(&goid, sizeof(void *), (void*)(g_addr+parsed_args->goid_offset));
+    bpf_probe_read_user(&parent_goid, sizeof(void *), (void*)(g_addr+parsed_args->parent_goid_offset));
+
     parsed_args->goroutine_id = goid;
+    parsed_args->parent_goroutine_id =parent_goid;
 
     return 1;
 }
@@ -169,6 +177,8 @@ int uprobe_hook(struct pt_regs *ctx)
     //get goid
     collectedParaList->g_addr_offset = paraLlistTemplate->g_addr_offset;
     collectedParaList->goid_offset = paraLlistTemplate->goid_offset;
+    collectedParaList->parent_goid_offset = paraLlistTemplate->parent_goid_offset;
+
     
 
     if (!get_goroutine_id(collectedParaList)) {

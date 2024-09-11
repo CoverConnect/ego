@@ -84,8 +84,12 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 	}
 
 	//goid offset
+	rdr := i.bi.Images[0].DwarfReader()
+	rdr.SeekToTypeNamed("runtime.g")
+
 	typ, err := i.bi.FindType("runtime.g")
 	if err != nil {
+		log.Println(err)
 		return
 	}
 	var goidOffset int64
@@ -98,6 +102,18 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 			}
 		}
 	}
+
+	var parentGoidOffset int64
+	switch t := typ.(type) {
+	case *godwarf.StructType:
+		for _, field := range t.Field {
+			if field.Name == "parentGoid" {
+				parentGoidOffset = field.ByteOffset
+				break
+			}
+		}
+	}
+
 	// heavy depend on the platform
 	gOffset, err := i.bi.GStructOffset(nil)
 	if err != nil {
@@ -113,7 +129,7 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 			fmt.Printf("%+v\n", err)
 			return
 		}
-		if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, gOffset); err != nil {
+		if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, parentGoidOffset, gOffset); err != nil {
 			fmt.Printf("%+v\n", err)
 			return
 		}

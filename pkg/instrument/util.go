@@ -32,9 +32,9 @@ func GetFunctionByPrefix(bi *proc.BinaryInfo, prefix string) []*proc.Function {
 	return fns
 }
 
-func sendParamToHook(obj *hookObjects, key uint64, params []proc.Parameter, goidOffset int64, gOffset uint64) error {
+func sendParamToHook(obj *hookObjects, key uint64, params []proc.Parameter, goidOffset, parentGoidOffset int64, gOffset uint64) error {
 
-	paraList, ok := createHookFunctionParameterListT(params, goidOffset, gOffset)
+	paraList, ok := createHookFunctionParameterListT(params, goidOffset, parentGoidOffset, gOffset)
 	if !ok {
 		return errors.New("Can't CreateHookFunctionParameterListT")
 
@@ -96,7 +96,7 @@ func Collect(bi *proc.BinaryInfo) {
 		// TODO cache this
 		fn := bi.PCToFunc(ctx.FnAddr)
 		fmt.Println(fn.Name)
-		fmt.Printf("goid: %x\n", ctx.GoroutineId)
+		fmt.Printf("parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
 		variables, err := GetVariablesFromCtx(fn, ctx, bi)
 		if err != nil {
 			log.Print(err)
@@ -145,7 +145,7 @@ func PrintV(v *proc.Variable) {
 
 }
 
-func createHookFunctionParameterListT(args []proc.Parameter, goidOffset int64, gOffset uint64) (*hookFunctionParameterListT, bool) {
+func createHookFunctionParameterListT(args []proc.Parameter, goidOffset, parentGoid int64, gOffset uint64) (*hookFunctionParameterListT, bool) {
 	// due to the hookFunctionParameterListT define para[6]
 	if len(args) > 6 {
 		return nil, false
@@ -154,6 +154,7 @@ func createHookFunctionParameterListT(args []proc.Parameter, goidOffset int64, g
 	paraList := &hookFunctionParameterListT{}
 	paraList.N_parameters = uint32(len(args))
 	paraList.GoidOffset = uint32(goidOffset)
+	paraList.ParentGoidOffset = uint32(parentGoid)
 	paraList.G_addrOffset = int64(gOffset)
 	for idx, arg := range args {
 
