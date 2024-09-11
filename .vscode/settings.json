@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "random": "c",
-        "bpf_helpers.h": "c"
-    }
-}
