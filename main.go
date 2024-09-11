@@ -10,7 +10,7 @@ import (
 
 var binaryPath = "/root/ego/tracee/tracee"
 
-var prefix = "main.receiver.target"
+var prefix = "main.Target"
 
 func main() {
 

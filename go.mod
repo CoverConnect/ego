@@ -2,7 +2,7 @@ module github.com/CoverConnect/ego
 
 go 1.22.5
 
-replace github.com/go-delve/delve => ./dep/delve
+replace github.com/go-delve/delve => ./depp/delve
 
 require (
 	github.com/cilium/ebpf v0.11.0
