@@ -4,5 +4,4 @@ workspace/***
 *.o
 ebpf/sample/sample
 ego
-tracee/***
 hook_*
