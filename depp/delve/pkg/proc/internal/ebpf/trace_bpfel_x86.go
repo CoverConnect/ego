@@ -119,5 +119,4 @@ func _TraceClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
-//go:embed trace_bpfel_x86.o
 var _TraceBytes []byte
