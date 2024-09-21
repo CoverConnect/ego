@@ -5,3 +5,4 @@ workspace/***
 ebpf/sample/sample
 ego
 hook_*
+__debug*

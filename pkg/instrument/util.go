@@ -104,7 +104,7 @@ func Collect(bi *proc.BinaryInfo) {
 		}
 		for _, v := range variables {
 			v.LoadValue(LoadFullValue)
-			PrintV(v)
+			PrintV("", *v)
 		}
 
 	}
@@ -138,9 +138,16 @@ func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *
 	return variables, nil
 }
 
-func PrintV(v *proc.Variable) {
+func PrintV(ident string, v proc.Variable) {
+	ident += "\t"
+	fmt.Printf(ident+"Name %s\n", v.Name)
 	if v.Value != nil {
-		fmt.Printf("v| name: %s, type: %s, value: %s\n", v.Name, v.RealType, v.Value.ExactString())
+		fmt.Printf(ident+"type: %s, value: %s\n", v.RealType, v.Value.ExactString())
+	}
+	if v.Children != nil {
+		for _, v := range v.Children {
+			PrintV(ident, v)
+		}
 	}
 
 }

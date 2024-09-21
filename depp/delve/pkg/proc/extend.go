@@ -42,7 +42,7 @@ func ReadVarEntry(entry *godwarf.Tree, image *Image) (name string, typ godwarf.T
 }
 
 func ConvertEntrytoVariable(entry reader.Variable, addr uint64, image *Image, bi *BinaryInfo, regs *op.DwarfRegisters) (*Variable, error) {
-
+	var mem MemoryReadWriter = &ProcMemory{}
 	// TODO Cache this part
 	name, dt, err := ReadVarEntry(entry.Tree, image)
 	if err != nil {
@@ -54,12 +54,20 @@ func ConvertEntrytoVariable(entry reader.Variable, addr uint64, image *Image, bi
 		return nil, err
 	}
 
-	cachedMem := CreateLoadedCachedMemory(nil)
-	compMem, _ := CreateCompositeMemory(cachedMem, bi.Arch, *regs, pieces, dt.Common().ByteSize)
+	if err != nil {
+		log.Printf("Failed to locate :%v\n", err)
+	}
+	if pieces != nil {
+		addr = fakeAddressUnresolv
+		cmem, _ := CreateCompositeMemory(mem, bi.Arch, *regs, pieces, dt.Common().ByteSize)
+		if cmem != nil {
+			mem = cmem
+		}
+	}
 
 	//TODO check this addr implement
 	addr = fakeAddressUnresolv
-	v := newVariable(name, addr, dt, bi, compMem)
+	v := newVariable(name, addr, dt, bi, mem)
 
 	return v, nil
 }
