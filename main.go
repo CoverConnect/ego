@@ -4,32 +4,43 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/CoverConnect/ego/pkg/instrument"
 )
 
-var binaryPath = "/root/ego/tracee/tracee"
-
-var prefix = "main.Target"
+var prefix = "main.target"
 
 type Point struct {
-	a int
-	b int
+	a string
+	b map[int]int
+	c []int
 }
 
 func main() {
-
+	// tracee body
 	go func() {
 		for {
-			time.Sleep(1 * time.Second)
-			p := Point{a: rand.Intn(10), b: rand.Intn(10)}
+			a := "omg: " + strconv.Itoa(rand.Intn(10))
+			b := make(map[int]int, 0)
+			b[3] = 3
+			c := []int{123, 33, 43, 41, 343}
+			p := Point{a: a, b: b, c: c}
 			target(p)
 		}
 	}()
 
-	in := instrument.NewInstrument(binaryPath)
+	// start instrument
 
+	exec, err := os.Executable()
+	if err != nil {
+		log.Printf("Fail to load exec file. path:%s", exec)
+		return
+	}
+
+	in := instrument.NewInstrument(exec)
 	in.ProbeFunctionWithPrefix(prefix)
 	in.Start()
 
@@ -43,5 +54,5 @@ func main() {
 
 //go:noinline
 func target(p Point) {
-	fmt.Printf("%v\n", p)
+	//fmt.Printf("%v\n", p)
 }

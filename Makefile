@@ -1,6 +1,5 @@
 
 all: 
-	cd ./tracee && go build .
 	cd ./pkg/instrument && go generate
 	go build
 
