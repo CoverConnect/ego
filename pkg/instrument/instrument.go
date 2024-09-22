@@ -4,14 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"runtime"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
-	"github.com/go-delve/delve/pkg/dwarf/godwarf"
 	"github.com/go-delve/delve/pkg/proc"
 )
+
+var in *Instrument
 
 func init() {
 
@@ -20,11 +22,24 @@ func init() {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		log.Fatal("Removing memlock:", err)
 	}
+
+	// Init instrument library
+	exec, err := os.Executable()
+	if err != nil {
+		log.Printf("Fail to load exec file. path:%s", exec)
+		return
+	}
+
+	in = NewInstrument(exec)
+	in.Start()
+
+	log.Printf("=== Instrument Ready ===\n")
 }
 
 type Instrument struct {
 	hookObj    *hookObjects
 	bi         *proc.BinaryInfo
+	ex         *link.Executable
 	uprobes    []link.Link
 	binaryPath string
 }
@@ -53,7 +68,13 @@ func NewInstrument(binaryPath string) *Instrument {
 		log.Fatal(err)
 	}
 
-	return &Instrument{bi: bi, binaryPath: binaryPath, hookObj: &hookObj}
+	// open program to probe
+	ex, err := link.OpenExecutable(binaryPath)
+	if err != nil {
+		log.Fatalf("open exec fail %w", err)
+	}
+
+	return &Instrument{bi: bi, binaryPath: binaryPath, hookObj: &hookObj, ex: ex}
 }
 
 func (i Instrument) Start() error {
@@ -76,68 +97,44 @@ func (i Instrument) Stop() {
 }
 
 func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
-
-	// open program to probe
-	ex, err := link.OpenExecutable(i.binaryPath)
+	// TODO move to instrument type
+	goidOffset, err := getGoIDOffset(i.bi)
 	if err != nil {
-		log.Fatalf("open exec fail %w", err)
-	}
-
-	//goid offset
-	rdr := i.bi.Images[0].DwarfReader()
-	rdr.SeekToTypeNamed("runtime.g")
-
-	typ, err := i.bi.FindType("runtime.g")
-	if err != nil {
-		log.Println(err)
+		log.Printf("%+v\n", err)
 		return
 	}
-	var goidOffset int64
-	switch t := typ.(type) {
-	case *godwarf.StructType:
-		for _, field := range t.Field {
-			if field.Name == "goid" {
-				goidOffset = field.ByteOffset
-				break
-			}
-		}
-	}
 
-	var parentGoidOffset int64
-	switch t := typ.(type) {
-	case *godwarf.StructType:
-		for _, field := range t.Field {
-			if field.Name == "parentGoid" {
-				parentGoidOffset = field.ByteOffset
-				break
-			}
-		}
+	parentGoidOffset, err := getParentIDOffset(i.bi)
+	if err != nil {
+		log.Printf("%+v\n", err)
+		return
 	}
 
 	// heavy depend on the platform
 	gOffset, err := i.bi.GStructOffset(nil)
 	if err != nil {
-		fmt.Printf("%+v\n", err)
+		log.Printf("%+v\n", err)
 		return
 	}
 
+	// Probe the function with all signature
 	uprobes := make([]link.Link, 0)
 	for _, f := range GetFunctionByPrefix(i.bi, prefix) {
 		params, err := GetFunctionParameter(i.bi, f)
 
 		if err != nil {
-			fmt.Printf("%+v\n", err)
+			log.Printf("%+v\n", err)
 			return
 		}
 		if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, parentGoidOffset, gOffset); err != nil {
-			fmt.Printf("%+v\n", err)
+			log.Printf("%+v\n", err)
 			return
 		}
 
 		// uprobe to function (trace)
-		up, err := ex.Uprobe(f.Name, i.hookObj.UprobeHook, nil)
+		up, err := i.ex.Uprobe(f.Name, i.hookObj.UprobeHook, nil)
 		if err != nil {
-			log.Printf("set uprobe error: %w", err)
+			log.Printf("set uprobe error: %v", err)
 			continue
 		}
 		uprobes = append(uprobes, up)
@@ -145,4 +142,9 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 
 	}
 	i.uprobes = uprobes
+}
+
+func (i *Instrument) UnProbeFunctionWithPrefix(prefix string) {
+
+	// TODO
 }

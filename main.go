@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"math/rand"
-	"os"
 	"strconv"
 	"time"
 
@@ -21,6 +18,13 @@ type Point struct {
 
 func main() {
 	// tracee body
+	instrument.Trace("main.target")
+	Tracee()
+
+	select {}
+}
+
+func Tracee() {
 	go func() {
 		for {
 			a := "omg: " + strconv.Itoa(rand.Intn(10))
@@ -29,27 +33,10 @@ func main() {
 			c := []int{123, 33, 43, 41, 343}
 			p := Point{a: a, b: b, c: c}
 			target(p)
+
+			time.Sleep(1 * time.Second)
 		}
 	}()
-
-	// start instrument
-
-	exec, err := os.Executable()
-	if err != nil {
-		log.Printf("Fail to load exec file. path:%s", exec)
-		return
-	}
-
-	in := instrument.NewInstrument(exec)
-	in.ProbeFunctionWithPrefix(prefix)
-	in.Start()
-
-	log.Printf("=== start ===\n")
-	for {
-		fmt.Printf(".")
-		time.Sleep(1 * time.Second)
-	}
-
 }
 
 //go:noinline
