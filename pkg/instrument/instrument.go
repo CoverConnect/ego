@@ -41,6 +41,7 @@ type Instrument struct {
 	bi         *proc.BinaryInfo
 	ex         *link.Executable
 	uprobes    []link.Link
+	uretprobe   []link.Link
 	binaryPath string
 }
 
@@ -119,6 +120,7 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 
 	// Probe the function with all signature
 	uprobes := make([]link.Link, 0)
+	uretprobe := make([]link.Link, 0)
 	for _, f := range GetFunctionByPrefix(i.bi, prefix) {
 		params, err := GetFunctionParameter(i.bi, f)
 
@@ -138,10 +140,19 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 			continue
 		}
 		uprobes = append(uprobes, up)
-		log.Printf("probed fn: %s", f.Name)
+		log.Printf("uprobes fn: %s", f.Name)
+
+		uret, err := i.ex.Uretprobe(f.Name, i.hookObj.UretprobeHook, nil)
+		if err != nil {
+			log.Printf("set uretprobe error: %w", err)
+			continue
+		}
+		uretprobe = append(uretprobe, uret)
+		log.Printf("uretprobe fn: %s", f.Name)
 
 	}
 	i.uprobes = uprobes
+	i.uretprobe = uretprobe
 }
 
 func (i *Instrument) UnProbeFunctionWithPrefix(prefix string) {

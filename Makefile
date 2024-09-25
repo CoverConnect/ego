@@ -1,7 +1,8 @@
 
 all: 
-	cd ./pkg/instrument && go generate
-	go build
+	cd ./tracee && /home/momo/go/bin/go1.22.6 build . -buildvcs=false
+	cd ./pkg/instrument && /home/momo/go/bin/go1.22.6 generate
+	/home/momo/go/bin/go1.22.6 build
 
 dump-map:
 	sudo bpftool map dump name context_map
@@ -10,7 +11,6 @@ log:
 
 run-env:
 	qemu-system-x86_64 \
-	-accel hvf           \
 	-display none                                          \
 	-m 16G                                                          \
 	-smp 6                                                         \
@@ -18,7 +18,8 @@ run-env:
 	-netdev user,id=net0,net=192.168.0.0/24,dhcpstart=192.168.0.9  \
 	-device virtio-net-pci,netdev=net0                             \
 	-device e1000,netdev=net1           \
-	-netdev user,id=net1,hostfwd=tcp::5555-:22\
+	-virtfs local,path=/Users/c-yeh/workspace/ego,mount_tag=host_folder,security_model=mapped,id=hostfolder \
+	-netdev user,id=net1,hostfwd=tcp::5555-:22
 
 build-env:
 	qemu-system-x86_64 \

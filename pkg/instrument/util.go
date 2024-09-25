@@ -79,6 +79,9 @@ func ReadPerf(event *ebpf.Map) {
 var LoadFullValue = proc.LoadConfig{true, 1, 64, 64, -1, 0}
 
 func Collect(bi *proc.BinaryInfo) {
+	if err := InitializeTracer("new sevice", "localhost:4317"); err != nil {
+		log.Fatalf("Failed to initialize tracer: %v", err)
+	}
 
 	// debug config
 	/*
@@ -106,6 +109,7 @@ func Collect(bi *proc.BinaryInfo) {
 			v.LoadValue(LoadFullValue)
 			PrintV("", *v)
 		}
+		TraceEntry(fn.Name, ctx)
 
 	}
 }
