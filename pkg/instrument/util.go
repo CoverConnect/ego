@@ -18,7 +18,8 @@ import (
 	"github.com/go-delve/delve/pkg/proc"
 )
 
-var CtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 0)
+var UprobesCtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 0)
+var UretprobesCtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 0)
 
 func GetFunctionByPrefix(bi *proc.BinaryInfo, prefix string) []*proc.Function {
 	fns := make([]*proc.Function, 0)
@@ -44,7 +45,7 @@ func sendParamToHook(obj *hookObjects, key uint64, params []proc.Parameter, goid
 	return nil
 }
 
-func ReadPerf(event *ebpf.Map) {
+func ReadPerf(event *ebpf.Map, ch chan hookFunctionParameterListT) {
 	var fnCtx hookFunctionParameterListT
 
 	rd, err := ringbuf.NewReader(event)
@@ -70,7 +71,7 @@ func ReadPerf(event *ebpf.Map) {
 			continue
 		}
 
-		CtxChan <- fnCtx
+		ch <- fnCtx
 
 	}
 }
@@ -79,7 +80,7 @@ func ReadPerf(event *ebpf.Map) {
 var LoadFullValue = proc.LoadConfig{true, 1, 64, 64, -1, 0}
 
 func Collect(bi *proc.BinaryInfo) {
-	if err := InitializeTracer("new sevice", "localhost:4317"); err != nil {
+	if err := InitializeTracer("new sevice", "10.0.2.2:4317"); err != nil {
 		log.Fatalf("Failed to initialize tracer: %v", err)
 	}
 
@@ -93,23 +94,44 @@ func Collect(bi *proc.BinaryInfo) {
 		}
 		vCache := variable.NewVariablesCache()
 	*/
-	for ctx := range CtxChan {
+	for ctx := range UprobesCtxChan {
 		//PrintCtx("Collect: ", ctx)
 		// find back function by pc
 		// TODO cache this
 		fn := bi.PCToFunc(ctx.FnAddr)
 		fmt.Println(fn.Name)
-		fmt.Printf("parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-		variables, err := GetVariablesFromCtx(fn, ctx, bi)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		for _, v := range variables {
-			v.LoadValue(LoadFullValue)
-			PrintV("", *v)
-		}
+		fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
+		// variables, err := GetVariablesFromCtx(fn, ctx, bi)
+		// if err != nil {
+		// 	log.Print(err)
+		// 	return
+		// }
+		// for _, v := range variables {
+		// 	v.LoadValue(LoadFullValue)
+		// 	PrintV("", *v)
+		// }
 		TraceEntry(fn.Name, ctx)
+
+	}
+}
+func CollectEnd(bi *proc.BinaryInfo) {
+	for ctx := range UretprobesCtxChan {
+		//PrintCtx("Collect: ", ctx)
+		// find back function by pc
+		// TODO cache this
+		// fn := bi.PCToFunc(ctx.FnAddr)
+		// fmt.Println(fn.Name)
+		// fmt.Printf("End parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
+		// variables, err := GetVariablesFromCtx(fn, ctx, bi)
+		// if err != nil {
+		// 	log.Print(err)
+		// 	return
+		// }
+		// for _, v := range variables {
+		// 	v.LoadValue(LoadFullValue)
+		// 	PrintV("", *v)
+		// }
+		TraceDefer(ctx)
 
 	}
 }

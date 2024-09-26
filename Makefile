@@ -18,8 +18,10 @@ run-env:
 	-netdev user,id=net0,net=192.168.0.0/24,dhcpstart=192.168.0.9  \
 	-device virtio-net-pci,netdev=net0                             \
 	-device e1000,netdev=net1           \
-	-virtfs local,path=/Users/c-yeh/workspace/ego,mount_tag=host_folder,security_model=mapped,id=hostfolder \
+	-fsdev local,security_model=mapped,id=fsdev0,path=/Users/c-yeh/workspace/ego -device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare \
 	-netdev user,id=net1,hostfwd=tcp::5555-:22
+
+# -virtfs local,path=/Users/c-yeh/workspace/ego,mount_tag=host_folder,security_model=mapped,id=hostfolder \
 
 build-env:
 	qemu-system-x86_64 \

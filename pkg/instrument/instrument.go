@@ -41,7 +41,7 @@ type Instrument struct {
 	bi         *proc.BinaryInfo
 	ex         *link.Executable
 	uprobes    []link.Link
-	uretprobe   []link.Link
+	uretprobes   []link.Link
 	binaryPath string
 }
 
@@ -81,8 +81,10 @@ func NewInstrument(binaryPath string) *Instrument {
 func (i Instrument) Start() error {
 
 	// go collector
-	go ReadPerf(i.hookObj.hookMaps.Events)
+	go ReadPerf(i.hookObj.hookMaps.UprobeEvents, UprobesCtxChan)
+	go ReadPerf(i.hookObj.hookMaps.UretprobeEvents, UretprobesCtxChan)
 	go Collect(i.bi)
+	go CollectEnd(i.bi)
 
 	return nil
 }
@@ -91,6 +93,9 @@ func (i Instrument) Stop() {
 
 	for _, uprobe := range i.uprobes {
 		uprobe.Close()
+	}
+	for _, uretprobe := range i.uretprobes {
+		uretprobe.Close()
 	}
 
 	defer i.hookObj.Close()
@@ -120,7 +125,7 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 
 	// Probe the function with all signature
 	uprobes := make([]link.Link, 0)
-	uretprobe := make([]link.Link, 0)
+	uretprobes := make([]link.Link, 0)
 	for _, f := range GetFunctionByPrefix(i.bi, prefix) {
 		params, err := GetFunctionParameter(i.bi, f)
 
@@ -147,12 +152,12 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 			log.Printf("set uretprobe error: %w", err)
 			continue
 		}
-		uretprobe = append(uretprobe, uret)
+		uretprobes = append(uretprobes, uret)
 		log.Printf("uretprobe fn: %s", f.Name)
 
 	}
 	i.uprobes = uprobes
-	i.uretprobe = uretprobe
+	i.uretprobes = uretprobes
 }
 
 func (i *Instrument) UnProbeFunctionWithPrefix(prefix string) {
