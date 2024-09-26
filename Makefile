@@ -1,5 +1,9 @@
 
-all: 
+all:
+	cd ./pkg/instrument && go generate
+	go build
+
+momo-all: 
 	cd ./tracee && /home/momo/go/bin/go1.22.6 build . -buildvcs=false
 	cd ./pkg/instrument && /home/momo/go/bin/go1.22.6 generate
 	/home/momo/go/bin/go1.22.6 build

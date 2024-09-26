@@ -33,13 +33,14 @@ func GetFunctionByPrefix(bi *proc.BinaryInfo, prefix string) []*proc.Function {
 	return fns
 }
 
-func sendParamToHook(obj *hookObjects, key uint64, params []proc.Parameter, goidOffset, parentGoidOffset int64, gOffset uint64) error {
+func sendParamToHook(obj *hookObjects, key uint64, params []proc.Parameter, goidOffset, parentGoidOffset int64, gOffset uint64, isRet bool) error {
 
 	paraList, ok := createHookFunctionParameterListT(params, goidOffset, parentGoidOffset, gOffset)
 	if !ok {
 		return errors.New("Can't CreateHookFunctionParameterListT")
 
 	}
+	paraList.IsRet = isRet
 	obj.ContextMap.Update(key, unsafe.Pointer(paraList), ebpf.UpdateAny)
 
 	return nil
@@ -70,7 +71,7 @@ func ReadPerf(event *ebpf.Map, ch chan hookFunctionParameterListT) {
 			log.Printf("parsing ringbuf event: %s", err)
 			continue
 		}
-
+		log.Printf("read a perf event")
 		ch <- fnCtx
 
 	}
@@ -116,6 +117,7 @@ func Collect(bi *proc.BinaryInfo) {
 }
 func CollectEnd(bi *proc.BinaryInfo) {
 	for ctx := range UretprobesCtxChan {
+		fmt.Println("end line")
 		//PrintCtx("Collect: ", ctx)
 		// find back function by pc
 		// TODO cache this
@@ -212,16 +214,16 @@ func createHookFunctionParameterListT(args []proc.Parameter, goidOffset, parentG
 	return paraList, true
 }
 
-func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function) ([]proc.Parameter, error) {
+func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64) ([]proc.Parameter, error) {
 
 	dwarfTree, err := f.GetDwarfTree()
 	if err != nil {
 		return nil, err
 	}
 
-	_, l := bi.EntryLineForFunc(f)
+	_, l, _ := bi.PCToLine(addr)
 	variablesFlags := reader.VariablesOnlyVisible
-	varEntries := reader.Variables(dwarfTree, f.Entry, l, variablesFlags)
+	varEntries := reader.Variables(dwarfTree, addr, l, variablesFlags)
 
 	var args []proc.Parameter
 	for _, entry := range varEntries {

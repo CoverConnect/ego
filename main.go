@@ -41,5 +41,6 @@ func Tracee() {
 
 //go:noinline
 func target(p Point) {
+
 	//fmt.Printf("%v\n", p)
 }

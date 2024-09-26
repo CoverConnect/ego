@@ -1,16 +1,19 @@
 package instrument
 
 import (
+	"debug/elf"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"runtime"
 
+	"github.com/CoverConnect/ego/pkg/disassembler"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/go-delve/delve/pkg/proc"
+	proc_ebpf "github.com/go-delve/delve/pkg/proc/ebpf"
 )
 
 var in *Instrument
@@ -41,7 +44,7 @@ type Instrument struct {
 	bi         *proc.BinaryInfo
 	ex         *link.Executable
 	uprobes    []link.Link
-	uretprobes   []link.Link
+	uretprobes []link.Link
 	binaryPath string
 }
 
@@ -81,9 +84,9 @@ func NewInstrument(binaryPath string) *Instrument {
 func (i Instrument) Start() error {
 
 	// go collector
-	go ReadPerf(i.hookObj.hookMaps.UprobeEvents, UprobesCtxChan)
+	//go ReadPerf(i.hookObj.hookMaps.UprobeEvents, UprobesCtxChan)
 	go ReadPerf(i.hookObj.hookMaps.UretprobeEvents, UretprobesCtxChan)
-	go Collect(i.bi)
+	//go Collect(i.bi)
 	go CollectEnd(i.bi)
 
 	return nil
@@ -127,17 +130,25 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 	uprobes := make([]link.Link, 0)
 	uretprobes := make([]link.Link, 0)
 	for _, f := range GetFunctionByPrefix(i.bi, prefix) {
-		params, err := GetFunctionParameter(i.bi, f)
-
+		// File information
+		img := i.bi.PCToImage(f.Entry)
+		file, err := elf.Open(img.Path)
 		if err != nil {
 			log.Printf("%+v\n", err)
 			return
 		}
-		if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, parentGoidOffset, gOffset); err != nil {
+
+		_, err = GetFunctionParameter(i.bi, f, f.Entry)
+		if err != nil {
 			log.Printf("%+v\n", err)
 			return
 		}
 
+		/*if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, parentGoidOffset, gOffset, false); err != nil {
+			log.Printf("%+v\n", err)
+			return
+		}
+		*/
 		// uprobe to function (trace)
 		up, err := i.ex.Uprobe(f.Name, i.hookObj.UprobeHook, nil)
 		if err != nil {
@@ -147,13 +158,45 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 		uprobes = append(uprobes, up)
 		log.Printf("uprobes fn: %s", f.Name)
 
-		uret, err := i.ex.Uretprobe(f.Name, i.hookObj.UretprobeHook, nil)
+		//uprobe to function end
+		// refer from delve
+
+		instructions, err := disassembler.Decode(f.Entry, f.End)
 		if err != nil {
-			log.Printf("set uretprobe error: %w", err)
-			continue
+			log.Printf("%+v\n", err)
+			return
 		}
-		uretprobes = append(uretprobes, uret)
-		log.Printf("uretprobe fn: %s", f.Name)
+
+		var addrs []uint64
+		for _, instruction := range instructions {
+			if instruction.IsRet() {
+				addrs = append(addrs, instruction.Loc.PC)
+			}
+		}
+		addrs = append(addrs, proc.FindDeferReturnCalls(instructions)...)
+		for _, addr := range addrs {
+			retParams, err := GetFunctionParameter(i.bi, f, addr)
+			if err != nil {
+				log.Printf("%+v\n", err)
+				return
+			}
+
+			if err := sendParamToHook(i.hookObj, addr, retParams, goidOffset, parentGoidOffset, gOffset, true); err != nil {
+				log.Printf("%+v\n", err)
+				return
+			}
+			off, err := proc_ebpf.AddressToOffset(file, addr)
+			if err != nil {
+				return
+			}
+			end, err := i.ex.Uprobe(f.Name, i.hookObj.UprobeHook, &link.UprobeOptions{Offset: off})
+			if err != nil {
+				return
+			}
+			uretprobes = append(uretprobes, end)
+			log.Printf("uretprobes fn: %s", f.Name)
+
+		}
 
 	}
 	i.uprobes = uprobes
