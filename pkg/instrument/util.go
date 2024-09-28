@@ -71,7 +71,7 @@ func ReadPerf(event *ebpf.Map, ch chan hookFunctionParameterListT) {
 			log.Printf("parsing ringbuf event: %s", err)
 			continue
 		}
-		log.Printf("read a perf event")
+		//log.Printf("read a perf event")
 		ch <- fnCtx
 
 	}
@@ -81,59 +81,57 @@ func ReadPerf(event *ebpf.Map, ch chan hookFunctionParameterListT) {
 var LoadFullValue = proc.LoadConfig{true, 1, 64, 64, -1, 0}
 
 func Collect(bi *proc.BinaryInfo) {
-	if err := InitializeTracer("new sevice", "10.0.2.2:4317"); err != nil {
-		log.Fatalf("Failed to initialize tracer: %v", err)
-	}
-
-	// debug config
 	/*
-		config := config.ObjectDumpConfig{
-			MaxDepth:           0,
-			MaxWidth:           100,
-			MaxCollectionDepth: 0,
-			MaxString:          64 * 1024,
+		if err := InitializeTracer("new sevice", "10.0.2.2:4317"); err != nil {
+			log.Fatalf("Failed to initialize tracer: %v", err)
 		}
-		vCache := variable.NewVariablesCache()
 	*/
+	// debug config
+
 	for ctx := range UprobesCtxChan {
 		//PrintCtx("Collect: ", ctx)
 		// find back function by pc
 		// TODO cache this
 		fn := bi.PCToFunc(ctx.FnAddr)
+		log.Println("===collected entry===")
 		fmt.Println(fn.Name)
 		fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-		// variables, err := GetVariablesFromCtx(fn, ctx, bi)
-		// if err != nil {
-		// 	log.Print(err)
-		// 	return
-		// }
-		// for _, v := range variables {
-		// 	v.LoadValue(LoadFullValue)
-		// 	PrintV("", *v)
-		// }
-		TraceEntry(fn.Name, ctx)
+		/*variables, err := GetVariablesFromCtx(fn, ctx, bi)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		for _, v := range variables {
+			v.LoadValue(LoadFullValue)
+			PrintV("", *v)
+		}
 
+		TraceEntry(fn.Name, ctx)
+		*/
 	}
 }
 func CollectEnd(bi *proc.BinaryInfo) {
 	for ctx := range UretprobesCtxChan {
-		fmt.Println("end line")
-		//PrintCtx("Collect: ", ctx)
-		// find back function by pc
-		// TODO cache this
-		// fn := bi.PCToFunc(ctx.FnAddr)
-		// fmt.Println(fn.Name)
-		// fmt.Printf("End parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-		// variables, err := GetVariablesFromCtx(fn, ctx, bi)
-		// if err != nil {
-		// 	log.Print(err)
-		// 	return
-		// }
-		// for _, v := range variables {
-		// 	v.LoadValue(LoadFullValue)
-		// 	PrintV("", *v)
-		// }
-		TraceDefer(ctx)
+		log.Println("===collected end===")
+
+		fn := bi.PCToFunc(ctx.FnAddr)
+		fmt.Println(fn.Name)
+		fmt.Printf("End parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
+
+		// TODO bug in variables
+		/*
+			variables, err := GetVariablesFromCtx(fn, ctx, bi)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+			for _, v := range variables {
+				v.LoadValue(LoadFullValue)
+				PrintV("", *v)
+			}
+		*/
+
+		//TraceDefer(ctx)
 
 	}
 }
@@ -150,12 +148,12 @@ func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *
 	variablesFlags := reader.VariablesOnlyVisible
 	image := fn.GetImage()
 
-	varEntries := reader.Variables(dwarfTree, fn.Entry, l, variablesFlags)
+	varEntries := reader.Variables(dwarfTree, regs.PC(), l, variablesFlags)
 
 	variables := make([]*proc.Variable, 0)
 	for _, entry := range varEntries {
 		//param := ctx.Params[idx]
-		v, err := proc.ConvertEntrytoVariable(entry, fn.Entry, image, bi, regs /*, param.Daddr, param.Val*/)
+		v, err := proc.ConvertEntrytoVariable(entry, regs.PC(), image, bi, regs /*, param.Daddr, param.Val*/)
 		if err != nil {
 
 			continue
@@ -214,8 +212,8 @@ func createHookFunctionParameterListT(args []proc.Parameter, goidOffset, parentG
 	return paraList, true
 }
 
-func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64) ([]proc.Parameter, error) {
-
+// getRet decide this function return parameter or return parameter
+func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64, getRet bool) ([]proc.Parameter, error) {
 	dwarfTree, err := f.GetDwarfTree()
 	if err != nil {
 		return nil, err
@@ -227,14 +225,25 @@ func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64) ([
 
 	var args []proc.Parameter
 	for _, entry := range varEntries {
+
+		isret, ok := entry.Val(dwarf.AttrVarParam).(bool)
+		if !ok {
+			return nil, err
+		}
+
 		image := f.GetImage()
 		name, dt, err := proc.ReadVarEntry(entry.Tree, image)
 		if err != nil {
 			log.Printf("%w", err)
 			continue
 		}
+
+		if isret != getRet {
+			continue
+		}
+
 		// TODO cache this part
-		offset, pieces, _, err := bi.Location(entry, dwarf.AttrLocation, f.Entry, op.DwarfRegisters{}, nil)
+		offset, pieces, _, err := bi.Location(entry, dwarf.AttrLocation, addr, op.DwarfRegisters{}, nil)
 		if err != nil {
 			log.Printf("%w", err)
 			continue
@@ -245,7 +254,6 @@ func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64) ([
 				paramPieces = append(paramPieces, int(piece.Val))
 			}
 		}
-		isret, _ := entry.Val(dwarf.AttrVarParam).(bool)
 		offset += int64(bi.Arch.PtrSize())
 
 		args = append(args, proc.Parameter{

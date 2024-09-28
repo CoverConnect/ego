@@ -262,9 +262,9 @@ int uprobe_hook(struct pt_regs *ctx)
         // collected Stack memory
         collect_stack_value(collectedParaList);
     }
-
+    bpf_printk("submit perf event\n");
     bpf_ringbuf_submit(collectedParaList, BPF_RB_FORCE_WAKEUP);
-
+    
     return 0;
 }
 

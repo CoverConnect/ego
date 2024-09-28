@@ -1,7 +1,6 @@
 package instrument
 
 import (
-	"debug/elf"
 	"errors"
 	"fmt"
 	"log"
@@ -13,7 +12,6 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/go-delve/delve/pkg/proc"
-	proc_ebpf "github.com/go-delve/delve/pkg/proc/ebpf"
 )
 
 var in *Instrument
@@ -84,9 +82,9 @@ func NewInstrument(binaryPath string) *Instrument {
 func (i Instrument) Start() error {
 
 	// go collector
-	//go ReadPerf(i.hookObj.hookMaps.UprobeEvents, UprobesCtxChan)
+	go ReadPerf(i.hookObj.hookMaps.UprobeEvents, UprobesCtxChan)
 	go ReadPerf(i.hookObj.hookMaps.UretprobeEvents, UretprobesCtxChan)
-	//go Collect(i.bi)
+	go Collect(i.bi)
 	go CollectEnd(i.bi)
 
 	return nil
@@ -130,25 +128,18 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 	uprobes := make([]link.Link, 0)
 	uretprobes := make([]link.Link, 0)
 	for _, f := range GetFunctionByPrefix(i.bi, prefix) {
-		// File information
-		img := i.bi.PCToImage(f.Entry)
-		file, err := elf.Open(img.Path)
+
+		params, err := GetFunctionParameter(i.bi, f, f.Entry, false)
 		if err != nil {
 			log.Printf("%+v\n", err)
 			return
 		}
 
-		_, err = GetFunctionParameter(i.bi, f, f.Entry)
-		if err != nil {
+		if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, parentGoidOffset, gOffset, false); err != nil {
 			log.Printf("%+v\n", err)
 			return
 		}
 
-		/*if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, parentGoidOffset, gOffset, false); err != nil {
-			log.Printf("%+v\n", err)
-			return
-		}
-		*/
 		// uprobe to function (trace)
 		up, err := i.ex.Uprobe(f.Name, i.hookObj.UprobeHook, nil)
 		if err != nil {
@@ -175,7 +166,7 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 		}
 		addrs = append(addrs, proc.FindDeferReturnCalls(instructions)...)
 		for _, addr := range addrs {
-			retParams, err := GetFunctionParameter(i.bi, f, addr)
+			retParams, err := GetFunctionParameter(i.bi, f, addr, true)
 			if err != nil {
 				log.Printf("%+v\n", err)
 				return
@@ -185,10 +176,9 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 				log.Printf("%+v\n", err)
 				return
 			}
-			off, err := proc_ebpf.AddressToOffset(file, addr)
-			if err != nil {
-				return
-			}
+
+			off := getRelatedOffset(f.Entry, addr)
+			log.Printf("set uretprobe: %x, off: %x\n", addr, off)
 			end, err := i.ex.Uprobe(f.Name, i.hookObj.UprobeHook, &link.UprobeOptions{Offset: off})
 			if err != nil {
 				return
@@ -206,4 +196,11 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 func (i *Instrument) UnProbeFunctionWithPrefix(prefix string) {
 
 	// TODO
+}
+
+func getRelatedOffset(a, b uint64) uint64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
 }

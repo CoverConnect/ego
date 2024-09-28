@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -32,7 +33,8 @@ func Tracee() {
 			b[3] = 3
 			c := []int{123, 33, 43, 41, 343}
 			p := Point{a: a, b: b, c: c}
-			target(p)
+			c1, c2, err := target(p)
+			fmt.Printf("%d,%d,%v\n", c1, c2, err)
 
 			time.Sleep(1 * time.Second)
 		}
@@ -40,7 +42,11 @@ func Tracee() {
 }
 
 //go:noinline
-func target(p Point) {
+func target(p Point) (c1, c2 int, err error) {
 
-	//fmt.Printf("%v\n", p)
+	v := rand.Intn(10)
+
+	p.c = append(p.c, v)
+
+	return p.c[0], p.c[1], fmt.Errorf("no error")
 }
