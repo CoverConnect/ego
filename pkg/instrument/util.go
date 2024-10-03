@@ -80,61 +80,6 @@ func ReadPerf(event *ebpf.Map, ch chan hookFunctionParameterListT) {
 // TODO in the future we extend this part to be more flexiable to user
 var LoadFullValue = proc.LoadConfig{true, 1, 64, 64, -1, 0}
 
-func Collect(bi *proc.BinaryInfo) {
-	/*
-		if err := InitializeTracer("new sevice", "10.0.2.2:4317"); err != nil {
-			log.Fatalf("Failed to initialize tracer: %v", err)
-		}
-	*/
-	// debug config
-
-	for ctx := range UprobesCtxChan {
-		//PrintCtx("Collect: ", ctx)
-		// find back function by pc
-		// TODO cache this
-		fn := bi.PCToFunc(ctx.FnAddr)
-		log.Println("===collected entry===")
-		fmt.Println(fn.Name)
-		fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-		/*variables, err := GetVariablesFromCtx(fn, ctx, bi)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		for _, v := range variables {
-			v.LoadValue(LoadFullValue)
-			PrintV("", *v)
-		}
-
-		TraceEntry(fn.Name, ctx)
-		*/
-	}
-}
-func CollectEnd(bi *proc.BinaryInfo) {
-	for ctx := range UretprobesCtxChan {
-		log.Println("===collected end===")
-
-		fn := bi.PCToFunc(ctx.FnAddr)
-		fmt.Println(fn.Name)
-		fmt.Printf("End parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-
-		// TODO bug in variables
-		/*
-			variables, err := GetVariablesFromCtx(fn, ctx, bi)
-			if err != nil {
-				log.Print(err)
-				return
-			}
-			for _, v := range variables {
-				v.LoadValue(LoadFullValue)
-				PrintV("", *v)
-			}
-		*/
-
-		//TraceDefer(ctx)
-
-	}
-}
 
 func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *proc.BinaryInfo) ([]*proc.Variable, error) {
 	regs := GetRegisterFromCtx(ctx)

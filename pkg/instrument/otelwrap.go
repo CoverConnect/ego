@@ -10,8 +10,9 @@ import (
 	"go.opentelemetry.io/otel"
 	// "go.opentelemetry.io/otel/attribute"
 
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+
 	// "go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	// "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -23,8 +24,9 @@ import (
 
 // Assume a global context is defined in this package or another shared package
 var GlobalContext context.Context
-var spanStack map[int] []traceSpen.Span
+var spanStack map[int][]traceSpen.Span
 var ctxStack map[int][]context.Context
+
 // var spanStack []traceSpen.Span
 // var ctxStack []context.Context
 
@@ -68,7 +70,7 @@ func StartSpan(operationName string, goid int, parentid int) {
 	if ok {
 		// In same goroutine
 		fmt.Println("ok before start span")
-		ctx, span := tracer.Start(currentCtxStack[len(currentCtxStack) - 1], operationName, traceSpen.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
+		ctx, span := tracer.Start(currentCtxStack[len(currentCtxStack)-1], operationName, traceSpen.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
 		fmt.Println("ok before append span")
 		spanStack[goid] = append(spanStack[goid], span)
 		fmt.Println("ok before append ctx")
@@ -102,8 +104,6 @@ func StartSpan(operationName string, goid int, parentid int) {
 	// 	spanStack = append(spanStack, span)
 	// 	ctxStack = append(ctxStack, ctx)
 
-
-
 	fmt.Println("Executing line 4")
 }
 
@@ -111,22 +111,27 @@ func StopSpan(goid int) {
 	fmt.Println("before get current span stack")
 	currentSpanStack := spanStack[goid]
 	fmt.Println("before get current span")
-	span := currentSpanStack[len(currentSpanStack)-1]
-	fmt.Println("before remove last element in current span")
-	spanStack[goid] = currentSpanStack[:len(currentSpanStack)-1]
-	if len(spanStack[goid]) == 0 {
-		delete(spanStack, goid)
-	}
-	fmt.Println("before remove last element in current ctx")
-	ctxStack[goid] = ctxStack[goid][:len(ctxStack[goid])-1]
-	if len(ctxStack[goid]) == 0 {
-		delete(ctxStack, goid)
-	}
 
-	// // span := spanStack[len(spanStack)-1]
-	// // spanStack = spanStack[:len(spanStack)-1]
-	// // ctxStack = ctxStack[:len(ctxStack)-1]
+	// tail call may call before entry call
+	if len(currentSpanStack)-1 >= 0 {
 
-	span.End()
-	fmt.Println("end span")
+		span := currentSpanStack[len(currentSpanStack)-1]
+		fmt.Println("before remove last element in current span")
+		spanStack[goid] = currentSpanStack[:len(currentSpanStack)-1]
+		if len(spanStack[goid]) == 0 {
+			delete(spanStack, goid)
+		}
+		fmt.Println("before remove last element in current ctx")
+		ctxStack[goid] = ctxStack[goid][:len(ctxStack[goid])-1]
+		if len(ctxStack[goid]) == 0 {
+			delete(ctxStack, goid)
+		}
+
+		// // span := spanStack[len(spanStack)-1]
+		// // spanStack = spanStack[:len(spanStack)-1]
+		// // ctxStack = ctxStack[:len(ctxStack)-1]
+
+		span.End()
+		fmt.Println("end span")
+	}
 }
