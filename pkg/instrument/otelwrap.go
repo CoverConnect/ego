@@ -11,10 +11,9 @@ import (
 	// "go.opentelemetry.io/otel/attribute"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 
-	// "go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-	// "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -40,9 +39,23 @@ func init() {
 }
 
 func InitializeTracer(serviceName string, collectorAddress string) error {
-	exporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
-	// client := otlptracegrpc.NewClient(otlptracegrpc.WithInsecure(), otlptracegrpc.WithEndpoint(collectorAddress), otlptracegrpc.WithDialOption(grpc.WithBlock()))
-	// exporter, err := otlptrace.New(GlobalContext, client)
+	//exporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
+	//client := otlptracegrpc.NewClient(otlptracegrpc.WithInsecure(), otlptracegrpc.WithEndpoint(collectorAddress), otlptracegrpc.WithDialOption(grpc.WithBlock()))
+	//exporter, err := otlptrace.New(GlobalContext, client)
+
+	headers := map[string]string{
+		"content-type": "application/json",
+	}
+
+	exporter, err := otlptrace.New(
+		context.Background(),
+		otlptracehttp.NewClient(
+			otlptracehttp.WithEndpoint(collectorAddress),
+			otlptracehttp.WithHeaders(headers),
+			otlptracehttp.WithInsecure(),
+		),
+	)
+
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,7 @@ import (
 
 func init() {
 
-	if err := InitializeTracer("ego", "127.0.0.1:4317"); err != nil {
+	if err := InitializeTracer("ego", "127.0.0.1:4318"); err != nil {
 		log.Fatalf("Failed to initialize tracer: %v", err)
 	}
 
