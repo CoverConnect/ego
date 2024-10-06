@@ -13,6 +13,10 @@ dump-map:
 log:
 	sudo bpftool prog tracelog
 
+trace-be:
+	../jaeger-1.61.0-linux-amd64/jaeger-all-in-one 
+
+
 run-env:
 	qemu-system-x86_64 \
 	-display none                                          \

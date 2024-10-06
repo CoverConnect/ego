@@ -92,19 +92,21 @@ struct
 #define BPF_MAX_VAR_SIZ (1 << 29)
 
 // Ring buffer to handle communication of variable values back to userspace.
+// entry and return probe should share the same queue, (same timeline )
 struct
 {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, BPF_MAX_VAR_SIZ);
-} uprobe_events SEC(".maps");
+} probe_time_event SEC(".maps");
 
 // pipe
+/*
 struct
 {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, BPF_MAX_VAR_SIZ);
 } uretprobe_events SEC(".maps");
-
+*/
 __always_inline
 int get_goroutine_id(function_parameter_list_t *parsed_args) {
     struct task_struct *task;
@@ -175,27 +177,16 @@ int uprobe_hook(struct pt_regs *ctx)
     }
 
 
-    if (paraLlistTemplate->is_ret){
-        // prepare to send back the info
-        collectedParaList = bpf_ringbuf_reserve(&uretprobe_events, sizeof(function_parameter_list_t), 0);
-        if (!collectedParaList)
-        {
-            bpf_printk("No enough ringbuf for collectedParaList for return");
-            return 1;
-        }
-        bpf_printk("get ret template");
 
-    }else{
-        // prepare to send back the info
-        collectedParaList = bpf_ringbuf_reserve(&uprobe_events, sizeof(function_parameter_list_t), 0);
-        if (!collectedParaList)
-        {
-            bpf_printk("No enough ringbuf for collectedParaList");
-            return 1;
-        }
-        bpf_printk("get entry template");
-
+    // prepare to send back the info
+    collectedParaList = bpf_ringbuf_reserve(&probe_time_event, sizeof(function_parameter_list_t), 0);
+    if (!collectedParaList)
+    {
+        bpf_printk("No enough ringbuf for collectedParaList for return");
+        return 1;
     }
+
+    
 
 
     //get goid
@@ -214,6 +205,7 @@ int uprobe_hook(struct pt_regs *ctx)
 
     // prepare collected information
     collectedParaList->n_parameters = paraLlistTemplate->n_parameters;
+    collectedParaList->is_ret = paraLlistTemplate->is_ret;
 
     // collect context
     collectedParaList->fn_addr = ip;

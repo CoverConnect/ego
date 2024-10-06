@@ -17,26 +17,30 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	traceSpen "go.opentelemetry.io/otel/trace"
+	traceSpan "go.opentelemetry.io/otel/trace"
 	// "google.golang.org/grpc"
 )
 
 // Assume a global context is defined in this package or another shared package
-var GlobalContext context.Context
-var spanStack map[int][]traceSpen.Span
-var ctxStack map[int][]context.Context
 
-// var spanStack []traceSpen.Span
-// var ctxStack []context.Context
+type GOID int
+
+var GLOBALCTX = context.Background()
+
+var SPANSTK map[int][]traceSpan.Span
+var CTXSTK map[int][]context.Context
 
 func init() {
 	// Initialize GlobalContext
-	GlobalContext = context.Background()
-	ctxStack = make(map[int][]context.Context)
-	spanStack = make(map[int][]traceSpen.Span)
-	ctxStack[0] = []context.Context{GlobalContext}
-	// ctxStack = append(ctxStack, GlobalContext)
+	// todo sync map
+	CTXSTK = make(map[int][]context.Context)
+	SPANSTK = make(map[int][]traceSpan.Span)
+
+	// 0 idx means root
+	CTXSTK[0] = []context.Context{GLOBALCTX}
 }
+
+var tracer = otel.Tracer("otelwrap")
 
 func InitializeTracer(serviceName string, collectorAddress string) error {
 	//exporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
@@ -72,79 +76,67 @@ func InitializeTracer(serviceName string, collectorAddress string) error {
 }
 
 func StartSpan(operationName string, goid int, parentid int) {
-	// fmt.Println(goid, parentid)
-	fmt.Println("Starting span")
-	tracer := otel.Tracer("otelwrap")
-	currentCtxStack, ok := ctxStack[goid]
-	fmt.Println(goid)
-	fmt.Println(parentid)
-	fmt.Println(ctxStack)
-	fmt.Println(spanStack)
+
+	currentCtxStack, ok := CTXSTK[goid]
 	if ok {
-		// In same goroutine
-		fmt.Println("ok before start span")
-		ctx, span := tracer.Start(currentCtxStack[len(currentCtxStack)-1], operationName, traceSpen.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
-		fmt.Println("ok before append span")
-		spanStack[goid] = append(spanStack[goid], span)
-		fmt.Println("ok before append ctx")
-		ctxStack[goid] = append(ctxStack[goid], ctx)
-		fmt.Println("ok after append ctx")
+		ctx, span := tracer.Start(currentCtxStack[len(currentCtxStack)-1], operationName, traceSpan.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
+		SPANSTK[goid] = append(SPANSTK[goid], span)
+		CTXSTK[goid] = append(CTXSTK[goid], ctx)
 	} else {
+
 		// New goroutine
-		fmt.Println("ng before get current ctx")
-		currentCtxStack, ok = ctxStack[parentid]
-		if !ok {
-			fmt.Println("use global ctx")
-			ctxStack[parentid] = []context.Context{GlobalContext}
-			currentCtxStack = ctxStack[parentid]
-		}
-		fmt.Println("ng before start span")
-		ctx, span := tracer.Start(currentCtxStack[0], operationName, traceSpen.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
-		fmt.Println("ng before append span")
-		spanStack[goid] = []traceSpen.Span{span}
-		fmt.Println("ng before append ctx")
-		ctxStack[goid] = []context.Context{ctx}
-		fmt.Println("ng after append ctx")
+		// TODO How should we represent the go statement on tracing?
+		// New Ctx to connect back to parent goroutine
+		//CTXSTK[parentid] = []context.Context{GLOBALCTX}
+		//currentCtxStack = CTXSTK[parentid]
+
+		ctx, span := tracer.Start(GLOBALCTX, operationName, traceSpan.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
+		SPANSTK[goid] = []traceSpan.Span{span}
+		CTXSTK[goid] = []context.Context{ctx}
 	}
 	fmt.Println("after operation")
-	fmt.Println(ctxStack)
-	fmt.Println(spanStack)
+	fmt.Println("=====Starting span======")
+	fmt.Printf("goid: %d\n", goid)
+	fmt.Printf("pgoid: %d\n", parentid)
+	fmt.Printf("ctx stk len: %d \n", len(CTXSTK[goid]))
+	fmt.Printf("span stk len: %d\n", len(SPANSTK[goid]))
+	fmt.Println("=====Starting span======")
 
-	// fmt.Println(ctxStack)
-	// fmt.Println(ctxStack[len(ctxStack) - 1])
-	// 	ctx, span := tracer.Start(ctxStack[len(ctxStack) - 1], operationName)
+	// fmt.Println(CTXSTK)
+	// fmt.Println(CTXSTK[len(CTXSTK) - 1])
+	// 	ctx, span := tracer.Start(CTXSTK[len(CTXSTK) - 1], operationName)
 	// fmt.Println(ctx)
-	// 	spanStack = append(spanStack, span)
-	// 	ctxStack = append(ctxStack, ctx)
+	// 	SPANSTK = append(SPANSTK, span)
+	// 	CTXSTK = append(CTXSTK, ctx)
 
-	fmt.Println("Executing line 4")
+	//fmt.Println("Executing line 4")
 }
 
 func StopSpan(goid int) {
-	fmt.Println("before get current span stack")
-	currentSpanStack := spanStack[goid]
-	fmt.Println("before get current span")
 
-	// tail call may call before entry call
-	if len(currentSpanStack)-1 >= 0 {
-
-		span := currentSpanStack[len(currentSpanStack)-1]
-		fmt.Println("before remove last element in current span")
-		spanStack[goid] = currentSpanStack[:len(currentSpanStack)-1]
-		if len(spanStack[goid]) == 0 {
-			delete(spanStack, goid)
-		}
-		fmt.Println("before remove last element in current ctx")
-		ctxStack[goid] = ctxStack[goid][:len(ctxStack[goid])-1]
-		if len(ctxStack[goid]) == 0 {
-			delete(ctxStack, goid)
-		}
-
-		// // span := spanStack[len(spanStack)-1]
-		// // spanStack = spanStack[:len(spanStack)-1]
-		// // ctxStack = ctxStack[:len(ctxStack)-1]
-
-		span.End()
-		fmt.Println("end span")
+	currentSpanStack, ok := SPANSTK[goid]
+	if !ok {
+		// tail call may call before entry call
+		return
 	}
+
+	span := currentSpanStack[len(currentSpanStack)-1]
+	span.End()
+
+	SPANSTK[goid] = currentSpanStack[:len(currentSpanStack)-1]
+	if len(SPANSTK[goid]) == 0 {
+		delete(SPANSTK, goid)
+	}
+
+	CTXSTK[goid] = CTXSTK[goid][:len(CTXSTK[goid])-1]
+	if len(CTXSTK[goid]) == 0 {
+		delete(CTXSTK, goid)
+	}
+
+	fmt.Println("====end span===")
+	fmt.Printf("goid: %d\n", goid)
+	fmt.Printf("ctx stk len: %d \n", len(CTXSTK[goid]))
+	fmt.Printf("span stk len: %d\n", len(SPANSTK[goid]))
+	fmt.Println("====end span===")
+
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/CoverConnect/ego/pkg/instrument"
@@ -13,16 +12,14 @@ var prefix = "github.com/CoverConnect/ego/tracee"
 func main() {
 	// tracee body
 	instrument.Trace(prefix)
-	Tracee()
+	startTracee()
 
-	select {}
 }
 
-func Tracee() {
+func startTracee() {
 	for {
+		time.Sleep(2 * time.Second)
+		tracee.Entry()
 
-		tracee.F1()
-		time.Sleep(1 * time.Second)
-		fmt.Printf(".")
 	}
 }

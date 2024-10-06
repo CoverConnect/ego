@@ -82,10 +82,8 @@ func NewInstrument(binaryPath string) *Instrument {
 func (i Instrument) Start() error {
 
 	// go collector
-	go ReadPerf(i.hookObj.hookMaps.UprobeEvents, UprobesCtxChan)
-	go ReadPerf(i.hookObj.hookMaps.UretprobeEvents, UretprobesCtxChan)
-	go Collect(i.bi)
-	go CollectEnd(i.bi)
+	go ReadPerf(i.hookObj.hookMaps.ProbeTimeEvent, CtxChan)
+	go Collect(i.bi, CtxChan)
 
 	return nil
 }

@@ -1,5 +1,7 @@
 package tracee
 
+import "math/rand"
+
 type Point struct {
 	a string
 	b map[int]int
@@ -7,18 +9,41 @@ type Point struct {
 }
 
 //go:noinline
-func F1() {
-	F2()
-	F3()
+func Entry() { /// ---> hook  fork 1 g process register
+
+	a := rand.Intn(10)
+	f1(a)
+	f2
+
+	//F2()
+	//F3()
+
 }
 
 //go:noinline
-func F2() {
-	F4()
+func f1(a int) int {
+
+	if a%2 == 0 {
+		return a //// ---> hook
+	}
+	return a + 2 ///   ---> hook
 }
 
 //go:noinline
-func F3() {}
+func f2() {
+	//f21()
+	//f22()
+	//f23()
+}
 
 //go:noinline
-func F4() {}
+func f21() {}
+
+//go:noinline
+func f22() {}
+
+//go:noinline
+func f23() {}
+
+//go:noinline
+func f3() {}

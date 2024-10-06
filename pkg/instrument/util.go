@@ -1,7 +1,6 @@
 package instrument
 
 import (
-	"bytes"
 	"debug/dwarf"
 	"encoding/binary"
 	"errors"
@@ -11,15 +10,13 @@ import (
 	"unsafe"
 
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/ringbuf"
 	"github.com/go-delve/delve/pkg/dwarf/op"
 	"github.com/go-delve/delve/pkg/dwarf/reader"
 	"github.com/go-delve/delve/pkg/dwarf/regnum"
 	"github.com/go-delve/delve/pkg/proc"
 )
 
-var UprobesCtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 0)
-var UretprobesCtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 0)
+var CtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 100)
 
 func GetFunctionByPrefix(bi *proc.BinaryInfo, prefix string) []*proc.Function {
 	fns := make([]*proc.Function, 0)
@@ -46,40 +43,8 @@ func sendParamToHook(obj *hookObjects, key uint64, params []proc.Parameter, goid
 	return nil
 }
 
-func ReadPerf(event *ebpf.Map, ch chan hookFunctionParameterListT) {
-	var fnCtx hookFunctionParameterListT
-
-	rd, err := ringbuf.NewReader(event)
-	if err != nil {
-		log.Fatalf("opening ringbuf reader: %s", err)
-	}
-	defer rd.Close()
-	for {
-
-		record, err := rd.Read()
-		if err != nil {
-			if errors.Is(err, ringbuf.ErrClosed) {
-				log.Println("received signal, exiting..")
-				return
-			}
-			log.Printf("reading from reader: %s", err)
-			continue
-		}
-
-		// Parse the ringbuf event entry into a bpfEvent structure.
-		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &fnCtx); err != nil {
-			log.Printf("parsing ringbuf event: %s", err)
-			continue
-		}
-		//log.Printf("read a perf event")
-		ch <- fnCtx
-
-	}
-}
-
 // TODO in the future we extend this part to be more flexiable to user
 var LoadFullValue = proc.LoadConfig{true, 1, 64, 64, -1, 0}
-
 
 func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *proc.BinaryInfo) ([]*proc.Variable, error) {
 	regs := GetRegisterFromCtx(ctx)

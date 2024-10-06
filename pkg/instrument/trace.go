@@ -41,8 +41,8 @@ func TraceEntry(functionName string, ctx hookFunctionParameterListT) {
 
 func TraceDefer(ctx hookFunctionParameterListT) {
 
-	fmt.Println("stopppp GoId:        ")
-	fmt.Println(ctx.GoroutineId)
+	//fmt.Println("stopppp GoId:        ")
+	//fmt.Println(ctx.GoroutineId)
 	// stacktrace := callback.CollectStacktrace(regs, g, 10)
 	// goid := int(*(*int64)(unsafe.Pointer(g + 152))) // goid is int64
 	StopSpan(int(ctx.GoroutineId))
