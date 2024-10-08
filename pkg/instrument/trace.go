@@ -3,6 +3,8 @@ package instrument
 import (
 	// "context"
 	"fmt"
+
+	"github.com/go-delve/delve/pkg/proc"
 )
 
 // func TraceEntry(functionName string, ctx hookFunctionParameterListT) {
@@ -14,7 +16,7 @@ import (
 
 // func TraceDefer(ctx context.Context) {
 // }
-func TraceEntry(functionName string, ctx hookFunctionParameterListT) {
+func TraceEntry(functionName string, ctx hookFunctionParameterListT, variables []*proc.Variable) {
 
 	// stacktrace := callback.CollectStacktrace(regs, g, 10)
 	// fmt.Println(stacktrace[0].Function)
@@ -24,7 +26,7 @@ func TraceEntry(functionName string, ctx hookFunctionParameterListT) {
 	// goid := int(*(*int64)(unsafe.Pointer(g + 152)))     // goid is int64
 	// parentid := int(*(*int64)(unsafe.Pointer(g + 272))) // goid is int64
 	// parentid := 0
-	StartSpan(functionName, int(ctx.GoroutineId), int(ctx.ParentGoroutineId))
+	StartSpan(functionName, int(ctx.GoroutineId), int(ctx.ParentGoroutineId), variables)
 	// fmt.Println("GoId:        ")
 	// fmt.Println(GetGoID(GPtr(g)))
 	// var a t
@@ -39,13 +41,13 @@ func TraceEntry(functionName string, ctx hookFunctionParameterListT) {
 
 }
 
-func TraceDefer(ctx hookFunctionParameterListT) {
+func TraceDefer(ctx hookFunctionParameterListT, variables []*proc.Variable) {
 
 	//fmt.Println("stopppp GoId:        ")
 	//fmt.Println(ctx.GoroutineId)
 	// stacktrace := callback.CollectStacktrace(regs, g, 10)
 	// goid := int(*(*int64)(unsafe.Pointer(g + 152))) // goid is int64
-	StopSpan(int(ctx.GoroutineId))
+	StopSpan(int(ctx.GoroutineId), variables)
 	// fmt.Println(staktrace)
 
 	// fmt.Println("collect Trace defer")

@@ -7,7 +7,9 @@ import (
 
 	// "time"
 
+	"github.com/go-delve/delve/pkg/proc"
 	"go.opentelemetry.io/otel"
+
 	// "go.opentelemetry.io/otel/attribute"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -75,11 +77,13 @@ func InitializeTracer(serviceName string, collectorAddress string) error {
 	return nil
 }
 
-func StartSpan(operationName string, goid int, parentid int) {
+func StartSpan(operationName string, goid int, parentid int, variables []*proc.Variable) {
 
 	currentCtxStack, ok := CTXSTK[goid]
+	var span traceSpan.Span
+	var ctx context.Context
 	if ok {
-		ctx, span := tracer.Start(currentCtxStack[len(currentCtxStack)-1], operationName, traceSpan.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
+		ctx, span = tracer.Start(currentCtxStack[len(currentCtxStack)-1], operationName, traceSpan.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
 		SPANSTK[goid] = append(SPANSTK[goid], span)
 		CTXSTK[goid] = append(CTXSTK[goid], ctx)
 	} else {
@@ -90,10 +94,18 @@ func StartSpan(operationName string, goid int, parentid int) {
 		//CTXSTK[parentid] = []context.Context{GLOBALCTX}
 		//currentCtxStack = CTXSTK[parentid]
 
-		ctx, span := tracer.Start(GLOBALCTX, operationName, traceSpan.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
+		ctx, span = tracer.Start(GLOBALCTX, operationName, traceSpan.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
 		SPANSTK[goid] = []traceSpan.Span{span}
 		CTXSTK[goid] = []context.Context{ctx}
 	}
+
+	// Add Variables
+	vAttrs := make([]attribute.KeyValue, 0)
+	for _, v := range variables {
+		vAttr := attribute.String(v.Name, v.Value.ExactString())
+		vAttrs = append(vAttrs, vAttr)
+	}
+	span.AddEvent("variables", traceSpan.WithAttributes(vAttrs...))
 	fmt.Println("after operation")
 	fmt.Println("=====Starting span======")
 	fmt.Printf("goid: %d\n", goid)
@@ -112,7 +124,7 @@ func StartSpan(operationName string, goid int, parentid int) {
 	//fmt.Println("Executing line 4")
 }
 
-func StopSpan(goid int) {
+func StopSpan(goid int, variables []*proc.Variable) {
 
 	currentSpanStack, ok := SPANSTK[goid]
 	if !ok {
@@ -121,6 +133,14 @@ func StopSpan(goid int) {
 	}
 
 	span := currentSpanStack[len(currentSpanStack)-1]
+
+	// Add Variables
+	vAttrs := make([]attribute.KeyValue, 0)
+	for _, v := range variables {
+		vAttr := attribute.String(v.Name, v.Value.ExactString())
+		vAttrs = append(vAttrs, vAttr)
+	}
+	span.AddEvent("variables", traceSpan.WithAttributes(vAttrs...))
 	span.End()
 
 	SPANSTK[goid] = currentSpanStack[:len(currentSpanStack)-1]

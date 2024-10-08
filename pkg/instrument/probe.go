@@ -83,14 +83,45 @@ func Collect(bi *proc.BinaryInfo, ctxCh chan hookFunctionParameterListT) {
 }
 
 func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
-	fmt.Println("====collect entry====")
 	fn := bi.PCToFunc(ctx.FnAddr)
-	TraceEntry(fn.Name, ctx)
+
+	fmt.Println("====collect entry start====")
+	fmt.Printf("====F:%s ============\n", fn.Name)
+	fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
+	variables, err := GetVariablesFromCtx(fn, ctx, bi)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	for _, v := range variables {
+		v.LoadValue(LoadFullValue)
+		PrintV("", *v)
+	}
+
+	TraceEntry(fn.Name, ctx, variables)
+	fmt.Printf("====F:%s ============\n", fn.Name)
+	fmt.Println("====collect entry end====")
+
 }
 
 func CollectEnd(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
-	fmt.Println("====collect end====")
+	fn := bi.PCToFunc(ctx.FnAddr)
 
-	TraceDefer(ctx)
+	fmt.Println("====collect end start====")
+	fmt.Printf("====F:%s ============\n", fn.Name)
+
+	fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
+	variables, err := GetVariablesFromCtx(fn, ctx, bi)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	for _, v := range variables {
+		v.LoadValue(LoadFullValue)
+		PrintV("", *v)
+	}
+	fmt.Printf("====F:%s ============\n", fn.Name)
+	fmt.Println("====collect end end====")
+	TraceDefer(ctx, variables)
 
 }

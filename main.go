@@ -7,7 +7,7 @@ import (
 	"github.com/CoverConnect/ego/tracee"
 )
 
-var prefix = "github.com/CoverConnect/ego/tracee"
+var prefix = "github.com/CoverConnect/ego/tracee.recur"
 
 func main() {
 	// tracee body
