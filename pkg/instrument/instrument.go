@@ -35,6 +35,10 @@ func init() {
 	in.Start()
 
 	log.Printf("=== Instrument Ready ===\n")
+
+	// serve http endpoint
+	go Serve()
+
 }
 
 type Instrument struct {
