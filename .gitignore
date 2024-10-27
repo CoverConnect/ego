@@ -1,8 +1,6 @@
 workspace/***
 *.log
 .DS_Store
-*.o
 ebpf/sample/sample
 ego
-hook_*
 __debug*
