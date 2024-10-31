@@ -1,8 +1,8 @@
 package instrument
 
 import (
-	"github.com/go-delve/delve/pkg/dwarf/godwarf"
-	"github.com/go-delve/delve/pkg/proc"
+	"github.com/backman-git/delve/pkg/dwarf/godwarf"
+	"github.com/backman-git/delve/pkg/proc"
 )
 
 func getGoIDOffset(bi *proc.BinaryInfo) (int64, error) {

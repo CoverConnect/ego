@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/go-delve/delve/pkg/proc"
+	"github.com/backman-git/delve/pkg/proc"
 )
 
 var (

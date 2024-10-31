@@ -1,6 +1,6 @@
 package disassembler
 
-import "github.com/go-delve/delve/pkg/proc"
+import "github.com/backman-git/delve/pkg/proc"
 
 func GetEpilogue(instructions []proc.AsmInstruction) []proc.AsmInstruction {
 	_, epilogueStart, ok := findFirstJmp(instructions, 0)

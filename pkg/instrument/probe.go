@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/backman-git/delve/pkg/proc"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/ringbuf"
-	"github.com/go-delve/delve/pkg/proc"
 )
 
 func init() {

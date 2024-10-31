@@ -4,7 +4,7 @@ import (
 	// "context"
 	"fmt"
 
-	"github.com/go-delve/delve/pkg/proc"
+	"github.com/backman-git/delve/pkg/proc"
 )
 
 // func TraceEntry(functionName string, ctx hookFunctionParameterListT) {

@@ -2,9 +2,6 @@ module example
 
 go 1.22.5
 
-replace github.com/go-delve/delve => ../depp/delve
-
-replace github.com/CoverConnect/ego => ../
 
 require github.com/CoverConnect/ego v0.0.0-00010101000000-000000000000
 
@@ -31,7 +28,7 @@ require (
 )
 
 require (
-	github.com/go-delve/delve v0.0.0-00010101000000-000000000000 // indirect
+	github.com/backman-git/delve v0.0.1 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	golang.org/x/arch v0.10.0 // indirect

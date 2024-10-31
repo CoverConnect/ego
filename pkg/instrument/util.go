@@ -9,11 +9,11 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/backman-git/delve/pkg/dwarf/op"
+	"github.com/backman-git/delve/pkg/dwarf/reader"
+	"github.com/backman-git/delve/pkg/dwarf/regnum"
+	"github.com/backman-git/delve/pkg/proc"
 	"github.com/cilium/ebpf"
-	"github.com/go-delve/delve/pkg/dwarf/op"
-	"github.com/go-delve/delve/pkg/dwarf/reader"
-	"github.com/go-delve/delve/pkg/dwarf/regnum"
-	"github.com/go-delve/delve/pkg/proc"
 )
 
 var CtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 100)

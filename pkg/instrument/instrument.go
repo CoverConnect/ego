@@ -8,10 +8,10 @@ import (
 	"runtime"
 
 	"github.com/CoverConnect/ego/pkg/disassembler"
+	"github.com/backman-git/delve/pkg/proc"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
-	"github.com/go-delve/delve/pkg/proc"
 )
 
 var in *Instrument

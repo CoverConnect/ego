@@ -7,7 +7,7 @@ import (
 
 	// "time"
 
-	"github.com/go-delve/delve/pkg/proc"
+	"github.com/backman-git/delve/pkg/proc"
 	"go.opentelemetry.io/otel"
 
 	// "go.opentelemetry.io/otel/attribute"
