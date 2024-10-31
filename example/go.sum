@@ -1,5 +1,5 @@
-github.com/CoverConnect/ego v0.0.2 h1:aXYGKPT5tKyz/pgdruMlxV1IoE8TU3R07JSbKeWbi8o=
-github.com/CoverConnect/ego v0.0.2/go.mod h1:sB7quSRY3OFTXxi2NIjklrladyZMMLTIhR+2G2ik1Js=
+github.com/CoverConnect/ego v0.0.3 h1:XLday4fOfVZU7s3OoOF6+FdyF7kB0Yxa+8mkkrTzYZU=
+github.com/CoverConnect/ego v0.0.3/go.mod h1:sB7quSRY3OFTXxi2NIjklrladyZMMLTIhR+2G2ik1Js=
 github.com/backman-git/delve v0.0.1 h1:fhETI3F3OR653KsSQXNcBOM/N+YC4Y89mX90MQOwhBg=
 github.com/backman-git/delve v0.0.1/go.mod h1:8X/4jU5g3pCZudPVAKC9YMmXLATsRsjNV9iEVD/2Et8=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

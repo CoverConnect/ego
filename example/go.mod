@@ -24,7 +24,7 @@ require (
 	google.golang.org/protobuf v1.34.2 // indirect
 )
 
-require github.com/CoverConnect/ego v0.0.2
+require github.com/CoverConnect/ego v0.0.3
 
 require (
 	github.com/backman-git/delve v0.0.1 // indirect
