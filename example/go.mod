@@ -2,9 +2,6 @@ module example
 
 go 1.22.5
 
-
-require github.com/CoverConnect/ego v0.0.0-00010101000000-000000000000
-
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cilium/ebpf v0.16.0 // indirect
@@ -26,6 +23,8 @@ require (
 	google.golang.org/grpc v1.66.1 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
+
+require github.com/CoverConnect/ego v0.0.2
 
 require (
 	github.com/backman-git/delve v0.0.1 // indirect
