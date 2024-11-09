@@ -1,21 +1,12 @@
-package instrument
+package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/CoverConnect/ego/pkg/instrument"
 )
-
-const port = "8888"
-
-func Serve() {
-	http.HandleFunc("/trace", TraceHandler)
-	fmt.Printf("listen on port:%s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		println("Error starting server:", err)
-	}
-}
 
 type Response struct {
 	Message string `json:"message"`
@@ -40,8 +31,13 @@ func TraceHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+/*
+* sig - signature
+* function name
+ */
 func Trace(sig string) {
-	in.ProbeFunctionWithPrefix(sig)
+	instrument.GetInstrument().ProbeFunctionWithPrefix(sig)
+	instrument.GetInstrument().FunctionManager.Register(sig)
 }
 
 func UnTrace(sig string) {

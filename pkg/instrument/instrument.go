@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/CoverConnect/ego/internal"
 	"github.com/CoverConnect/ego/pkg/disassembler"
 	"github.com/backman-git/delve/pkg/proc"
 	"github.com/cilium/ebpf"
@@ -35,19 +36,16 @@ func init() {
 	in.Start()
 
 	log.Printf("=== Instrument Ready ===\n")
-
-	// serve http endpoint
-	go Serve()
-
 }
 
 type Instrument struct {
-	hookObj    *hookObjects
-	bi         *proc.BinaryInfo
-	ex         *link.Executable
-	uprobes    []link.Link
-	uretprobes []link.Link
-	binaryPath string
+	hookObj         *hookObjects
+	bi              *proc.BinaryInfo
+	ex              *link.Executable
+	uprobes         []link.Link
+	uretprobes      []link.Link
+	binaryPath      string
+	FunctionManager *internal.FunctionManager
 }
 
 func NewInstrument(binaryPath string) *Instrument {
@@ -80,7 +78,11 @@ func NewInstrument(binaryPath string) *Instrument {
 		log.Fatalf("open exec fail %w", err)
 	}
 
-	return &Instrument{bi: bi, binaryPath: binaryPath, hookObj: &hookObj, ex: ex}
+	return &Instrument{bi: bi, binaryPath: binaryPath, hookObj: &hookObj, ex: ex, functionManager: internal.NewFunctionManager()}
+}
+
+func GetInstrument() *Instrument {
+	return in
 }
 
 func (i Instrument) Start() error {
