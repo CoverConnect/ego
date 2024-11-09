@@ -19,12 +19,6 @@ var in *Instrument
 
 func init() {
 
-	//use ebpf
-	// Remove resource limits for kernels <5.11.
-	if err := rlimit.RemoveMemlock(); err != nil {
-		log.Fatal("Removing memlock:", err)
-	}
-
 	// Init instrument library
 	exec, err := os.Executable()
 	if err != nil {
@@ -78,7 +72,7 @@ func NewInstrument(binaryPath string) *Instrument {
 		log.Fatalf("open exec fail %w", err)
 	}
 
-	return &Instrument{bi: bi, binaryPath: binaryPath, hookObj: &hookObj, ex: ex, functionManager: internal.NewFunctionManager()}
+	return &Instrument{bi: bi, binaryPath: binaryPath, hookObj: &hookObj, ex: ex, FunctionManager: internal.NewFunctionManager()}
 }
 
 func GetInstrument() *Instrument {

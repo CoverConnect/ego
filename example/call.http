@@ -1,4 +1,0 @@
-
-### demo pattern: "github.com/CoverConnect/ego/tracee.recur"
-
-GET http://localhost:8888/trace?pattern=main.recur HTTP/1.1
