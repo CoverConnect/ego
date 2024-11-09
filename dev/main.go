@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	_ "github.com/CoverConnect/ego"
+	_ "github.com/CoverConnect/ego/cmd/ego"
 )
 
 func main() {
