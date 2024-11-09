@@ -33,13 +33,19 @@ func init() {
 }
 
 type Instrument struct {
-	hookObj         *hookObjects
-	bi              *proc.BinaryInfo
-	ex              *link.Executable
-	uprobes         []link.Link
-	uretprobes      []link.Link
+	hookObj *hookObjects
+	bi      *proc.BinaryInfo
+	ex      *link.Executable
+
+	userProbes map[string][]*userProbe // function prefix -> userProbe
+
 	binaryPath      string
 	FunctionManager *internal.FunctionManager
+}
+
+type userProbe struct {
+	start link.Link
+	end   []link.Link
 }
 
 func NewInstrument(binaryPath string) *Instrument {
@@ -90,11 +96,13 @@ func (i Instrument) Start() error {
 
 func (i Instrument) Stop() {
 
-	for _, uprobe := range i.uprobes {
-		uprobe.Close()
-	}
-	for _, uretprobe := range i.uretprobes {
-		uretprobe.Close()
+	for _, probes := range i.userProbes {
+		for _, probe := range probes {
+			probe.start.Close()
+			for _, endProbe := range probe.end {
+				endProbe.Close()
+			}
+		}
 	}
 
 	defer i.hookObj.Close()
@@ -123,8 +131,7 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 	}
 
 	// Probe the function with all signature
-	uprobes := make([]link.Link, 0)
-	uretprobes := make([]link.Link, 0)
+	userProbes := make(map[string][]*userProbe)
 	for _, f := range GetFunctionByPrefix(i.bi, prefix) {
 
 		params, err := GetFunctionParameter(i.bi, f, f.Entry, false)
@@ -144,7 +151,8 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 			log.Printf("set uprobe error: %v", err)
 			continue
 		}
-		uprobes = append(uprobes, up)
+
+		userProbe := &userProbe{start: up, end: make([]link.Link, 0)}
 		log.Printf("uprobes fn: %s", f.Name)
 
 		//uprobe to function end
@@ -153,7 +161,8 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 		instructions, err := disassembler.Decode(f.Entry, f.End)
 		if err != nil {
 			log.Printf("%+v\n", err)
-			return
+			userProbes[prefix] = append(userProbes[prefix], userProbe)
+			continue
 		}
 
 		var addrs []uint64
@@ -167,12 +176,12 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 			retParams, err := GetFunctionParameter(i.bi, f, addr, true)
 			if err != nil {
 				log.Printf("%+v\n", err)
-				return
+				continue
 			}
 
 			if err := sendParamToHook(i.hookObj, addr, retParams, goidOffset, parentGoidOffset, gOffset, true); err != nil {
 				log.Printf("%+v\n", err)
-				return
+				continue
 			}
 
 			off := getRelatedOffset(f.Entry, addr)
@@ -181,19 +190,22 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 			if err != nil {
 				return
 			}
-			uretprobes = append(uretprobes, end)
+			userProbe.end = append(userProbe.end, end)
 			log.Printf("uretprobes fn: %s", f.Name)
 
 		}
-
+		userProbes[prefix] = append(userProbes[prefix], userProbe)
 	}
-	i.uprobes = uprobes
-	i.uretprobes = uretprobes
+	i.userProbes = userProbes
 }
 
 func (i *Instrument) UnProbeFunctionWithPrefix(prefix string) {
-
-	// TODO
+	for _, probe := range i.userProbes[prefix] {
+		probe.start.Close()
+		for _, endProbe := range probe.end {
+			endProbe.Close()
+		}
+	}
 }
 
 func getRelatedOffset(a, b uint64) uint64 {
