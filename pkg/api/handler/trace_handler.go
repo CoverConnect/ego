@@ -41,5 +41,6 @@ func Trace(sig string) {
 }
 
 func UnTrace(sig string) {
-	// TODO in.UnProbeFunctionWithPrefix(sig)
+	instrument.GetInstrument().UnProbeFunctionWithPrefix(sig)
+	instrument.GetInstrument().FunctionManager.UnregisterByName(sig)
 }
