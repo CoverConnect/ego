@@ -13,22 +13,36 @@ type Response struct {
 }
 
 func TraceHandler(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method == http.MethodGet {
-		patternListStr := r.URL.Query().Get("pattern")
-		patternList := strings.Split(patternListStr, ",")
-
-		for _, p := range patternList {
-			Trace(p)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		response := Response{Message: "ok, " + patternListStr + "!"}
-		json.NewEncoder(w).Encode(response)
-	} else {
+	switch r.Method {
+	case http.MethodPost:
+		postHandler(w, r)
+	case http.MethodDelete:
+		deleteHandler(r)
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
 
+func postHandler(w http.ResponseWriter, r *http.Request) {
+	patternListStr := r.URL.Query().Get("pattern")
+	patternList := strings.Split(patternListStr, ",")
+
+	for _, p := range patternList {
+		Trace(p)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	response := Response{Message: "ok, " + patternListStr + "!"}
+	json.NewEncoder(w).Encode(response)
+}
+
+func deleteHandler(r *http.Request) {
+	patternListStr := r.URL.Query().Get("pattern")
+	patternList := strings.Split(patternListStr, ",")
+
+	for _, p := range patternList {
+		UnTrace(p)
+	}
 }
 
 /*
