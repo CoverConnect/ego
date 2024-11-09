@@ -9,7 +9,7 @@ import (
 
 const port = "8888"
 
-func init() {
+func Serve() {
 	http.HandleFunc("/trace", handler.TraceHandler)
 	http.HandleFunc("/functions", handler.GetFunctionHandler)
 	fmt.Printf("listen on port:%s", port)
