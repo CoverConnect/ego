@@ -14,8 +14,8 @@ type Response struct {
 
 func TraceHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case http.MethodPost:
-		postHandler(w, r)
+	case http.MethodGet:
+		getHandler(w, r)
 	case http.MethodDelete:
 		deleteHandler(r)
 	default:
@@ -23,7 +23,7 @@ func TraceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func postHandler(w http.ResponseWriter, r *http.Request) {
+func getHandler(w http.ResponseWriter, r *http.Request) {
 	patternListStr := r.URL.Query().Get("pattern")
 	patternList := strings.Split(patternListStr, ",")
 
