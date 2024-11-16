@@ -30,6 +30,7 @@ require github.com/CoverConnect/ego v0.0.3
 
 require (
 	github.com/backman-git/delve v0.0.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	golang.org/x/arch v0.10.0 // indirect

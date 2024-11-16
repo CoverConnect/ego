@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/CoverConnect/ego/pkg/event"
 	"github.com/backman-git/delve/pkg/proc"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/ringbuf"
@@ -99,6 +100,7 @@ func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
 	}
 
 	TraceEntry(fn.Name, ctx, variables)
+	go event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, variables))
 	fmt.Printf("====F:%s ============\n", fn.Name)
 	fmt.Println("====collect entry end====")
 
