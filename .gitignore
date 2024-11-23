@@ -4,3 +4,4 @@ workspace/***
 example/example
 __debug*
 dev/dev
+.vscode
