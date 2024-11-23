@@ -6,6 +6,8 @@ GET http://localhost:8888/trace?pattern=main.recur HTTP/1.1
 ###
 GET http://localhost:8888/functions HTTP/1.1
 
-
 ###
 GET http://localhost:8888/trace?pattern=main.recur HTTP/1.1
+
+###
+DELETE http://localhost:8888/trace?pattern=main.recur HTTP/1.1

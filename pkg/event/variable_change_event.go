@@ -39,11 +39,13 @@ func newVariableChangeEventBus() *VariableChangeEventBus {
 func NewVariableChangeEvent(functionName string, variables []*proc.Variable) *VariableChangeEvent {
 	var event = &VariableChangeEvent{}
 	event.FunctionName = functionName
+	event.Variables = make([]*Variable, 0)
 
 	for _, pvar := range variables {
 		var variable = &Variable{}
 		variable.Name = pvar.Name
 		variable.Value = pvar.Value.String()
+		event.Variables = append(event.Variables, variable)
 	}
 
 	return event

@@ -42,7 +42,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		// Example: We assume the first byte/character of the message is the command type
 		if messageType == websocket.TextMessage {
 			// Parse message and handle based on first character (command)
-			command := string(p[0]) // Take the first byte as a command (e.g., 'p' for "ping")
+			command := string(p) // Take the first byte as a command (e.g., 'p' for "ping")
 			handler, ok := handlers[command]
 			if ok {
 				handler(conn, p) // Call the handler
