@@ -100,7 +100,7 @@ func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
 	}
 
 	TraceEntry(fn.Name, ctx, variables)
-	go event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, variables))
+	event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, event.VariableTypeArgument, variables))
 	fmt.Printf("====F:%s ============\n", fn.Name)
 	fmt.Println("====collect entry end====")
 
@@ -125,5 +125,5 @@ func CollectEnd(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
 	fmt.Printf("====F:%s ============\n", fn.Name)
 	fmt.Println("====collect end end====")
 	TraceDefer(ctx, variables)
-
+	event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, event.VariableTypeReturnValue, variables))
 }
