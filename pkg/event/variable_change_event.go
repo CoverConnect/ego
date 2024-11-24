@@ -8,9 +8,17 @@ import (
 
 var variableChangeEventBus *VariableChangeEventBus
 
+type VariableChangeEventVariableType int
+
+const (
+	VariableTypeArgument VariableChangeEventVariableType = iota
+	VariableTypeReturnValue
+)
+
 type VariableChangeEvent struct {
-	FunctionName string      `json:"function_name"`
-	Variables    []*Variable `json:"variables"`
+	FunctionName string                          `json:"function_name"`
+	VariableType VariableChangeEventVariableType `json:"type"`
+	Variables    []*Variable                     `json:"variables"`
 }
 
 type Variable struct {
@@ -36,9 +44,10 @@ func newVariableChangeEventBus() *VariableChangeEventBus {
 	}
 }
 
-func NewVariableChangeEvent(functionName string, variables []*proc.Variable) *VariableChangeEvent {
+func NewVariableChangeEvent(functionName string, variableType VariableChangeEventVariableType, variables []*proc.Variable) *VariableChangeEvent {
 	var event = &VariableChangeEvent{}
 	event.FunctionName = functionName
+	event.VariableType = variableType
 	event.Variables = make([]*Variable, 0)
 
 	for _, pvar := range variables {
