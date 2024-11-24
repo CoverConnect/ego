@@ -2,7 +2,7 @@
 ### demo pattern: "github.com/CoverConnect/ego/tracee.recur"
 
 
-### add a trace
+### add a trace on recur 
 GET http://localhost:8888/trace?pattern=main.recur HTTP/1.1
 
 ### read a function
@@ -10,3 +10,6 @@ GET http://localhost:8888/functions HTTP/1.1
 
 ### delete a trace
 DELETE http://localhost:8888/trace?pattern=main.recur HTTP/1.1
+
+###
+GET http://localhost:8888/trace?pattern=main.s HTTP/1.1

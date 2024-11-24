@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	_ "github.com/CoverConnect/ego/cmd/ego"
@@ -10,83 +9,68 @@ import (
 
 func main() {
 	// tracee body
-	startTracee()
 
-}
+	go func() {
+		for {
+			go simpleFlow()
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
-func startTracee() {
+	// go recurr()
+
 	for {
-		time.Sleep(2 * time.Second)
-		Entry()
-		fmt.Printf(".")
+		fmt.Print(".")
+		time.Sleep(10 * time.Second)
 
 	}
 }
 
 type Point struct {
-	a string
-	b map[int]int
-	c []int
+	Str      string
+	IntMap   map[string]int
+	IntSlice []int
 }
 
-//go:noinline
-func Entry() { /// ---> hook  fork 1 g process register
-
-	a := rand.Intn(10)
-	//go f1(a)
-	//go f2(a)
-
-	go recur(a)
-
-	//F2()
-	//F3()
-
-}
-
-//go:noinline
-func f1(a int) int {
-
-	if a%2 == 0 {
-		return a //// ---> hook
+func NewPoint() *Point {
+	p := &Point{Str: "hello", IntMap: make(map[string]int), IntSlice: make([]int, 10)}
+	p.IntMap["key1"] = 1
+	for idx, v := range p.IntSlice {
+		v += idx
 	}
-	return a + 2 ///   ---> hook
+	return p
 }
 
 //go:noinline
-func f2(a int) int {
-	if a%2 == 0 {
-		return a
-	}
-
-	for idx := 0; idx < 5; idx++ {
-		f21(a)
-	}
-
-	return 10
-	//f22()
-	//f23()
+func simpleFlow() {
+	p := NewPoint()
+	s1(*p)
 }
 
 //go:noinline
-func f21(a int) int {
-	b := rand.Intn(10)
-	c := a * b
-	if c%3 == 0 {
-		return f22(c)
-	}
+func s1(p Point) Point {
 
-	return f23(c)
+	p.IntMap["s1key2"] = 2
+	p11 := s11(p)
+	return s12(p11)
+
 }
 
 //go:noinline
-func f22(a int) int {
-
-	return a * 100
+func s11(p Point) Point {
+	p.Str = "s11 change"
+	return p
 }
 
 //go:noinline
-func f23(a int) int {
-	return a - 19
+func s12(p Point) Point {
+	p.IntSlice = append(p.IntSlice, 12)
+	return p
+}
+
+//go:noinline
+func s111(p Point) {
+
 }
 
 //go:noinline
@@ -94,14 +78,6 @@ func recur(a int) int {
 	if a == 0 {
 		return 0
 	}
-
+	time.Sleep(1 * time.Second)
 	return recur(a - 1)
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	} else {
-		return b
-	}
 }

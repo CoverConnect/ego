@@ -14,7 +14,7 @@ func Serve() {
 	http.HandleFunc("/trace", handler.TraceHandler)
 	http.HandleFunc("/functions", handler.GetFunctionHandler)
 	http.HandleFunc("/ws", websocket.Handler)
-	fmt.Printf("listen on port:%s", port)
+	fmt.Printf("listen on port:%s\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		println("Error starting server:", err)
 	}
