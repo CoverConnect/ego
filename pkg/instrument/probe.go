@@ -84,6 +84,12 @@ func Collect(bi *proc.BinaryInfo, ctxCh chan hookFunctionParameterListT) {
 }
 
 func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered. Error:\n", r)
+		}
+	}()
+
 	fn := bi.PCToFunc(ctx.FnAddr)
 
 	fmt.Println("====collect entry start====")
@@ -107,6 +113,13 @@ func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
 }
 
 func CollectEnd(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered. Error:\n", r)
+		}
+	}()
+
 	fn := bi.PCToFunc(ctx.FnAddr)
 
 	fmt.Println("====collect end start====")

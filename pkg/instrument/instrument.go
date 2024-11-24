@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/debug"
 
 	"github.com/CoverConnect/ego/internal"
 	"github.com/CoverConnect/ego/pkg/disassembler"
@@ -89,7 +90,10 @@ func (i Instrument) Start() error {
 
 	// go collector
 	go ReadPerf(i.hookObj.hookMaps.ProbeTimeEvent, CtxChan)
-	go Collect(i.bi, CtxChan)
+	go func() {
+		debug.SetPanicOnFault(true)
+		Collect(i.bi, CtxChan)
+	}()
 
 	return nil
 }

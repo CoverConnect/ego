@@ -14,10 +14,9 @@ func main() {
 		for {
 			go simpleFlow()
 			time.Sleep(1 * time.Second)
+			go recur(10)
 		}
 	}()
-
-	// go recurr()
 
 	for {
 		fmt.Print(".")
@@ -44,7 +43,8 @@ func NewPoint() *Point {
 //go:noinline
 func simpleFlow() {
 	p := NewPoint()
-	s1(*p)
+	p1 := s1(*p)
+	p1.IntSlice[2] = 4
 }
 
 //go:noinline
@@ -52,8 +52,9 @@ func s1(p Point) Point {
 
 	p.IntMap["s1key2"] = 2
 	p11 := s11(p)
-	return s12(p11)
-
+	p12 := s12(p11)
+	p12.IntMap["keys1end"] = 7
+	return p12
 }
 
 //go:noinline
@@ -79,5 +80,5 @@ func recur(a int) int {
 		return 0
 	}
 	time.Sleep(1 * time.Second)
-	return recur(a - 1)
+	return recur(a-1) - 1
 }
