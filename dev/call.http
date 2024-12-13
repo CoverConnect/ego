@@ -13,3 +13,6 @@ DELETE http://localhost:8888/trace?pattern=main.recur HTTP/1.1
 
 ###
 GET http://localhost:8888/trace?pattern=main.s HTTP/1.1
+
+###
+GET http://localhost:8888/health HTTP/1.1

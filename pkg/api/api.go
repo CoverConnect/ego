@@ -11,6 +11,7 @@ import (
 const port = "8888"
 
 func Serve() {
+	http.HandleFunc("/health", handler.HealthCheckHandler)
 	http.HandleFunc("/trace", handler.TraceHandler)
 	http.HandleFunc("/functions", handler.GetFunctionHandler)
 	http.HandleFunc("/ws", websocket.Handler)

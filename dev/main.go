@@ -12,9 +12,9 @@ func main() {
 
 	go func() {
 		for {
-			go simpleFlow()
+			recur(10)
 			time.Sleep(1 * time.Second)
-			go recur(10)
+
 		}
 	}()
 
@@ -79,6 +79,5 @@ func recur(a int) int {
 	if a == 0 {
 		return 0
 	}
-	time.Sleep(1 * time.Second)
-	return recur(a-1) - 1
+	return recur(a - 1)
 }
