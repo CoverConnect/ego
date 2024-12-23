@@ -22,7 +22,8 @@ func (fm FunctionManager) GetAll() []*Function {
 	return functions
 }
 
-  	fm.functions[functionName] = &Function{Name: functionName}
+func (fm *FunctionManager) Register(functionName string) {
+	fm.functions[functionName] = &Function{Name: functionName}
 }
 
 func (fm *FunctionManager) UnregisterByName(name string) {

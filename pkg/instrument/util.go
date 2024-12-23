@@ -61,9 +61,16 @@ func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *
 	varEntries := reader.Variables(dwarfTree, regs.PC(), l, variablesFlags)
 
 	variables := make([]*proc.Variable, 0)
-	for _, entry := range varEntries {
-		//param := ctx.Params[idx]
-		v, err := proc.ConvertEntrytoVariable(entry, regs.PC(), image, bi, regs /*, param.Daddr, param.Val*/)
+	for idx, entry := range varEntries {
+		param := ctx.Params[idx]
+
+		// convert val type
+		valBytes := make([]byte, 48)
+		for idx := 0; idx < 48; idx++ {
+			valBytes[idx] = byte(param.Val[idx])
+		}
+
+		v, err := proc.ConvertEntrytoVariable(entry, regs.PC(), image, bi, regs, valBytes)
 		if err != nil {
 
 			continue

@@ -3,6 +3,7 @@ module dev
 go 1.22.5
 
 replace github.com/CoverConnect/ego => ../
+
 replace github.com/backman-git/delve => ../../delve
 
 require (

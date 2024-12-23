@@ -136,7 +136,7 @@ __always_inline void collect_stack_value(function_parameter_list_t *paraList)
     long ret;
     for (int idx = 0; idx < variable_num; idx++)
     {
-        if (paraList->params[idx].in_reg == false)
+        if (paraList->params[idx].in_reg == true)
         {
             continue;
         }
@@ -155,7 +155,12 @@ __always_inline void collect_stack_value(function_parameter_list_t *paraList)
             bpf_printk("read memory error");
             return;
         }
-        bpf_printk("read memory! idx: %d", idx);
+        bpf_printk("val:");
+        for (int idy = 0; idy < para->size; idy++)
+        {
+            bpf_printk("%d", idx, para->val[idy]);
+        }
+        bpf_printk("read memory\n");
     }
 }
 
