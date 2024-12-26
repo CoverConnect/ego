@@ -155,12 +155,8 @@ __always_inline void collect_stack_value(function_parameter_list_t *paraList)
             bpf_printk("read memory error");
             return;
         }
-        bpf_printk("val:");
-        for (int idy = 0; idy < para->size; idy++)
-        {
-            bpf_printk("%d", idx, para->val[idy]);
-        }
-        bpf_printk("read memory\n");
+
+        bpf_printk("%d: read memory from %x val: %x\n",idx,addr,para->val[0]);
     }
 }
 

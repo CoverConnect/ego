@@ -12,7 +12,7 @@ func main() {
 
 	go func() {
 		for {
-			recur(10)
+			simpleFlow()
 			time.Sleep(1 * time.Second)
 
 		}

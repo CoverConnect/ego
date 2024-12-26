@@ -70,7 +70,7 @@ func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *
 			valBytes[idx] = byte(param.Val[idx])
 		}
 
-		v, err := proc.ConvertEntrytoVariable(entry, regs.PC(), image, bi, regs, valBytes)
+		v, err := proc.ConvertEntrytoVariable(entry, regs.PC(), image, bi, regs, valBytes, param.InReg)
 		if err != nil {
 
 			continue
@@ -155,9 +155,9 @@ func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64, ge
 			continue
 		}
 
-		if isret != getRet {
-			continue
-		}
+		//if isret != getRet {
+		//	continue
+		//}
 
 		// TODO cache this part
 		offset, pieces, _, err := bi.Location(entry, dwarf.AttrLocation, addr, op.DwarfRegisters{}, nil)
