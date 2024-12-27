@@ -95,7 +95,7 @@ func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
 	fmt.Println("====collect entry start====")
 	fmt.Printf("====F:%s ============\n", fn.Name)
 	fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-	variables, err := GetVariablesFromCtx(fn, ctx, bi)
+	variables, err := GetVariablesFromCtx(fn, ctx, bi, false)
 	if err != nil {
 		log.Print(err)
 		return
@@ -126,7 +126,7 @@ func CollectEnd(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
 	fmt.Printf("====F:%s ============\n", fn.Name)
 
 	fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-	variables, err := GetVariablesFromCtx(fn, ctx, bi)
+	variables, err := GetVariablesFromCtx(fn, ctx, bi, true)
 	if err != nil {
 		log.Print(err)
 		return

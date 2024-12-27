@@ -46,7 +46,7 @@ func sendParamToHook(obj *hookObjects, key uint64, params []proc.Parameter, goid
 // TODO in the future we extend this part to be more flexiable to user
 var LoadFullValue = proc.LoadConfig{true, 1, 64, 64, -1, 0}
 
-func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *proc.BinaryInfo) ([]*proc.Variable, error) {
+func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *proc.BinaryInfo, getRet bool) ([]*proc.Variable, error) {
 	regs := GetRegisterFromCtx(ctx)
 
 	dwarfTree, err := fn.GetDwarfTree()
@@ -54,16 +54,29 @@ func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *
 		return nil, errors.New("can't get dwarf tree from function when get variable from ctx")
 	}
 
+	// TODO 用原來的 addr 找回
 	_, l := bi.EntryLineForFunc(fn)
 	variablesFlags := reader.VariablesOnlyVisible
 	image := fn.GetImage()
 
+	// TODO　這部分定位變數
 	varEntries := reader.Variables(dwarfTree, regs.PC(), l, variablesFlags)
 
 	variables := make([]*proc.Variable, 0)
-	for idx, entry := range varEntries {
-		param := ctx.Params[idx]
+	idx := 0
+	for _, entry := range varEntries {
 
+		isret, ok := entry.Val(dwarf.AttrVarParam).(bool)
+		if !ok {
+			continue
+		}
+
+		if getRet && !isret {
+			continue
+		}
+
+		param := ctx.Params[idx]
+		idx++
 		// convert val type
 		valBytes := make([]byte, 48)
 		for idx := 0; idx < 48; idx++ {
@@ -145,7 +158,7 @@ func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64, ge
 
 		isret, ok := entry.Val(dwarf.AttrVarParam).(bool)
 		if !ok {
-			return nil, err
+			continue
 		}
 
 		image := f.GetImage()
@@ -155,9 +168,9 @@ func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64, ge
 			continue
 		}
 
-		//if isret != getRet {
-		//	continue
-		//}
+		if isret != getRet {
+			continue
+		}
 
 		// TODO cache this part
 		offset, pieces, _, err := bi.Location(entry, dwarf.AttrLocation, addr, op.DwarfRegisters{}, nil)

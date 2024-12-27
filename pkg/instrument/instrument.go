@@ -183,6 +183,10 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 				continue
 			}
 
+			if len(retParams) == 0 {
+				continue
+			}
+
 			if err := sendParamToHook(i.hookObj, addr, retParams, goidOffset, parentGoidOffset, gOffset, true); err != nil {
 				log.Printf("%+v\n", err)
 				continue

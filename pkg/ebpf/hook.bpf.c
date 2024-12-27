@@ -142,7 +142,7 @@ __always_inline void collect_stack_value(function_parameter_list_t *paraList)
         }
 
         function_parameter_t *para = &paraList->params[idx];
-        size_t addr = paraList->ctx.sp + para->offset;
+        long unsigned int addr = paraList->ctx.sp + para->offset;
 
         if (para->size > 0x30)
         {
@@ -156,7 +156,7 @@ __always_inline void collect_stack_value(function_parameter_list_t *paraList)
             return;
         }
 
-        bpf_printk("%d: read memory from %x val: %x\n",idx,addr,para->val[0]);
+        bpf_printk("%d: read memory from %x at offset %d val: %x\n",idx,addr,para->offset,para->val[0]);
     }
 }
 
