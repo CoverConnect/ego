@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 
+	. "github.com/CoverConnect/ego/pkg/config"
 	"github.com/CoverConnect/ego/pkg/event"
 	"github.com/backman-git/delve/pkg/proc"
 	"github.com/cilium/ebpf"
@@ -15,7 +16,7 @@ import (
 
 func init() {
 
-	if err := InitializeTracer("ego", "127.0.0.1:4318"); err != nil {
+	if err := InitializeTracer("ego", Config.GetString("ego.otlpendpoint")); err != nil {
 		log.Fatalf("Failed to initialize tracer: %v", err)
 	}
 
