@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	_ "github.com/CoverConnect/ego/cmd/ego"
@@ -12,8 +13,9 @@ func main() {
 
 	go func() {
 		for {
+
 			simpleFlow()
-			time.Sleep(1 * time.Second)
+			time.Sleep(3 * time.Second)
 
 		}
 	}()
@@ -45,6 +47,12 @@ func simpleFlow() {
 	p := NewPoint()
 	p1 := s1(*p)
 	p1.IntSlice[2] = 4
+}
+
+//go:noinline
+func simpleInt(a int) int {
+	r := rand.Intn(10)
+	return r
 }
 
 //go:noinline

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/CoverConnect/ego/pkg/api/handler"
@@ -15,8 +15,10 @@ func Serve() {
 	http.HandleFunc("/trace", handler.TraceHandler)
 	http.HandleFunc("/functions", handler.GetFunctionHandler)
 	http.HandleFunc("/ws", websocket.Handler)
-	fmt.Printf("listen on port:%s\n", port)
+
+	slog.Debug("listening", "port", port)
+
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		println("Error starting server:", err)
+		slog.Error("Instrument API error:", err)
 	}
 }

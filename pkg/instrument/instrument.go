@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -18,6 +19,16 @@ import (
 
 var in *Instrument
 
+const (
+	LOG_LEVEL  = slog.LevelDebug
+	LOG_ARG    = true
+	LOG_RETURN = true
+)
+
+var (
+	TRACE_FUNC = true
+)
+
 func init() {
 
 	// Init instrument library
@@ -30,7 +41,8 @@ func init() {
 	in = NewInstrument(exec)
 	in.Start()
 
-	log.Printf("=== Instrument Ready ===\n")
+	slog.SetLogLoggerLevel(LOG_LEVEL)
+	slog.Debug("Instrument Ready")
 }
 
 type Instrument struct {
@@ -117,20 +129,20 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 	// TODO move to instrument type
 	goidOffset, err := getGoIDOffset(i.bi)
 	if err != nil {
-		log.Printf("%+v\n", err)
+		slog.Debug("%+v\n", err)
 		return
 	}
 
 	parentGoidOffset, err := getParentIDOffset(i.bi)
 	if err != nil {
-		log.Printf("%+v\n", err)
+		slog.Debug("%+v\n", err)
 		return
 	}
 
 	// heavy depend on the platform
 	gOffset, err := i.bi.GStructOffset(nil)
 	if err != nil {
-		log.Printf("%+v\n", err)
+		slog.Debug("%+v\n", err)
 		return
 	}
 
@@ -140,31 +152,31 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 
 		params, err := GetFunctionParameter(i.bi, f, f.Entry, false)
 		if err != nil {
-			log.Printf("%+v\n", err)
+			slog.Debug("Can't get params of function args", "error", err)
 			return
 		}
 
 		if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, parentGoidOffset, gOffset, false); err != nil {
-			log.Printf("%+v\n", err)
+			slog.Debug("send param to ebpf", "error", err)
 			return
 		}
 
 		// uprobe to function (trace)
 		up, err := i.ex.Uprobe(f.Name, i.hookObj.UprobeHook, nil)
 		if err != nil {
-			log.Printf("set uprobe error: %v", err)
+			slog.Debug("set uprobe error: %v", err)
 			continue
 		}
 
 		userProbe := &userProbe{start: up, end: make([]link.Link, 0)}
-		log.Printf("uprobes fn: %s", f.Name)
+		slog.Debug("uprobe", "fname", f.Name)
 
 		//uprobe to function end
 		// refer from delve
 
 		instructions, err := disassembler.Decode(f.Entry, f.End)
 		if err != nil {
-			log.Printf("%+v\n", err)
+			slog.Debug("Decode Function", "Error", err)
 			userProbes[prefix] = append(userProbes[prefix], userProbe)
 			continue
 		}
@@ -179,27 +191,24 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 		for _, addr := range addrs {
 			retParams, err := GetFunctionParameter(i.bi, f, addr, true)
 			if err != nil {
-				log.Printf("%+v\n", err)
+				slog.Debug("Can't get ret Params", "Error", err)
 				continue
 			}
 
-			if len(retParams) == 0 {
-				continue
-			}
-
+			// no matter what, we need to send the ret params to ebpf
 			if err := sendParamToHook(i.hookObj, addr, retParams, goidOffset, parentGoidOffset, gOffset, true); err != nil {
-				log.Printf("%+v\n", err)
+				slog.Debug("send ret params to ebpf", "error", err)
 				continue
 			}
 
 			off := getRelatedOffset(f.Entry, addr)
-			log.Printf("set uretprobe: %x, off: %x\n", addr, off)
 			end, err := i.ex.Uprobe(f.Name, i.hookObj.UprobeHook, &link.UprobeOptions{Offset: off})
 			if err != nil {
+				slog.Debug("set uretprobe", "error", err)
 				return
 			}
 			userProbe.end = append(userProbe.end, end)
-			log.Printf("uretprobes fn: %s", f.Name)
+			slog.Debug("set uretprobe:", "fname", f.Name, "addr", addr, "offset", off)
 
 		}
 		userProbes[prefix] = append(userProbes[prefix], userProbe)

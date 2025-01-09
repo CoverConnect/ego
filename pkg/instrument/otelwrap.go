@@ -3,7 +3,6 @@ package instrument
 import (
 	// import statements
 	"context"
-	"fmt"
 
 	// "time"
 
@@ -88,12 +87,6 @@ func StartSpan(operationName string, goid int, parentid int, variables []*proc.V
 		CTXSTK[goid] = append(CTXSTK[goid], ctx)
 	} else {
 
-		// New goroutine
-		// TODO How should we represent the go statement on tracing?
-		// New Ctx to connect back to parent goroutine
-		//CTXSTK[parentid] = []context.Context{GLOBALCTX}
-		//currentCtxStack = CTXSTK[parentid]
-
 		ctx, span = tracer.Start(GLOBALCTX, operationName, traceSpan.WithAttributes(attribute.Int("goid", goid), attribute.Int("parentid", parentid)))
 		SPANSTK[goid] = []traceSpan.Span{span}
 		CTXSTK[goid] = []context.Context{ctx}
@@ -106,22 +99,6 @@ func StartSpan(operationName string, goid int, parentid int, variables []*proc.V
 		vAttrs = append(vAttrs, vAttr)
 	}
 	span.AddEvent("variables", traceSpan.WithAttributes(vAttrs...))
-	fmt.Println("after operation")
-	fmt.Println("=====Starting span======")
-	fmt.Printf("goid: %d\n", goid)
-	fmt.Printf("pgoid: %d\n", parentid)
-	fmt.Printf("ctx stk len: %d \n", len(CTXSTK[goid]))
-	fmt.Printf("span stk len: %d\n", len(SPANSTK[goid]))
-	fmt.Println("=====Starting span======")
-
-	// fmt.Println(CTXSTK)
-	// fmt.Println(CTXSTK[len(CTXSTK) - 1])
-	// 	ctx, span := tracer.Start(CTXSTK[len(CTXSTK) - 1], operationName)
-	// fmt.Println(ctx)
-	// 	SPANSTK = append(SPANSTK, span)
-	// 	CTXSTK = append(CTXSTK, ctx)
-
-	//fmt.Println("Executing line 4")
 }
 
 func StopSpan(goid int, variables []*proc.Variable) {
@@ -152,11 +129,5 @@ func StopSpan(goid int, variables []*proc.Variable) {
 	if len(CTXSTK[goid]) == 0 {
 		delete(CTXSTK, goid)
 	}
-
-	fmt.Println("====end span===")
-	fmt.Printf("goid: %d\n", goid)
-	fmt.Printf("ctx stk len: %d \n", len(CTXSTK[goid]))
-	fmt.Printf("span stk len: %d\n", len(SPANSTK[goid]))
-	fmt.Println("====end span===")
 
 }

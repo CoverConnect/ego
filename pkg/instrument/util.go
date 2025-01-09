@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"strings"
 	"unsafe"
 
@@ -96,9 +97,9 @@ func GetVariablesFromCtx(fn *proc.Function, ctx hookFunctionParameterListT, bi *
 
 func PrintV(ident string, v proc.Variable) {
 	ident += "\t"
-	fmt.Printf(ident+"Name %s\n", v.Name)
+	log.Printf(ident+"Name %s\n", v.Name)
 	if v.Value != nil {
-		fmt.Printf(ident+"type: %s, value: %s\n", v.RealType, v.Value.ExactString())
+		log.Printf(ident+"type: %s, value: %s\n", v.RealType, v.Value.ExactString())
 	}
 	if v.Children != nil {
 		for _, v := range v.Children {
@@ -175,7 +176,7 @@ func GetFunctionParameter(bi *proc.BinaryInfo, f *proc.Function, addr uint64, ge
 		// TODO cache this part
 		offset, pieces, _, err := bi.Location(entry, dwarf.AttrLocation, addr, op.DwarfRegisters{}, nil)
 		if err != nil {
-			log.Printf("%w", err)
+			slog.Debug("Locate the variables", "error", err)
 			continue
 		}
 		paramPieces := make([]int, 0, len(pieces))

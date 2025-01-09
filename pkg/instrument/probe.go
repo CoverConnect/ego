@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"log"
+	"log/slog"
 
 	"github.com/CoverConnect/ego/pkg/event"
 	"github.com/backman-git/delve/pkg/proc"
@@ -16,11 +16,12 @@ import (
 func init() {
 
 	if err := InitializeTracer("ego", "127.0.0.1:4318"); err != nil {
-		log.Fatalf("Failed to initialize tracer: %v", err)
+		slog.Warn("Failed to initialize tracer:", err)
 	}
 
 }
 
+// Read value from perf event
 func ReadPerf(event *ebpf.Map, ctxCh chan hookFunctionParameterListT) {
 	var fnCtx hookFunctionParameterListT
 
@@ -46,97 +47,82 @@ func ReadPerf(event *ebpf.Map, ctxCh chan hookFunctionParameterListT) {
 			log.Printf("parsing ringbuf event: %s", err)
 			continue
 		}
-		//log.Printf("read a perf event")
+
 		ctxCh <- fnCtx
 	}
 }
 
 func Collect(bi *proc.BinaryInfo, ctxCh chan hookFunctionParameterListT) {
 
-	// debug config
 	for ctx := range ctxCh {
-
-		// find back function by pc
-		// TODO cache this
-		//log.Println("===collected entry===")
-		//fmt.Println(fn.Name)
-		//fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-		/*variables, err := GetVariablesFromCtx(fn, ctx, bi)
-		if err != nil {
-			log.Print(err)
-			return
+		switch ctx.IsRet {
+		case false:
+			fName, variables := CollectEntry(bi, ctx)
+			if TRACE_FUNC {
+				TraceEntry(fName, ctx, variables)
+			}
+		case true:
+			_, variables := CollectEnd(bi, ctx)
+			if TRACE_FUNC {
+				TraceDefer(ctx, variables)
+			}
 		}
+
+	}
+}
+
+func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) (string, []*proc.Variable) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Debug("Collect Entry Recovered", "error", r)
+		}
+	}()
+
+	fn := bi.PCToFunc(ctx.FnAddr)
+	variables, err := GetVariablesFromCtx(fn, ctx, bi, false)
+	if err != nil {
+		log.Print(err)
+		return fn.Name, []*proc.Variable{}
+	}
+
+	if LOG_ARG {
+		slog.Debug("collect entry", "func", fn.Name)
+		for _, v := range variables {
+			v.LoadValue(LoadFullValue)
+			PrintV("value", *v)
+		}
+		// send to ws
+		event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, event.VariableTypeArgument, variables))
+	}
+
+	return fn.Name, variables
+}
+
+func CollectEnd(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) (string, []*proc.Variable) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Debug("Collect End Recovered", "error", r)
+		}
+	}()
+
+	fn := bi.PCToFunc(ctx.FnAddr)
+
+	variables, err := GetVariablesFromCtx(fn, ctx, bi, true)
+	if err != nil {
+		log.Print(err)
+		return fn.Name, []*proc.Variable{}
+	}
+
+	if LOG_RETURN {
+		slog.Debug("collect end", "func", fn.Name)
 		for _, v := range variables {
 			v.LoadValue(LoadFullValue)
 			PrintV("", *v)
 		}
-		*/
-
-		switch ctx.IsRet {
-		case false:
-			CollectEntry(bi, ctx)
-
-		case true:
-			CollectEnd(bi, ctx)
-		}
+		event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, event.VariableTypeReturnValue, variables))
 
 	}
-}
 
-func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered. Error:\n", r)
-		}
-	}()
-
-	fn := bi.PCToFunc(ctx.FnAddr)
-
-	fmt.Println("====collect entry start====")
-	fmt.Printf("====F:%s ============\n", fn.Name)
-	fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-	variables, err := GetVariablesFromCtx(fn, ctx, bi, false)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	for _, v := range variables {
-		v.LoadValue(LoadFullValue)
-		PrintV("", *v)
-	}
-
-	TraceEntry(fn.Name, ctx, variables)
-	event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, event.VariableTypeArgument, variables))
-	fmt.Printf("====F:%s ============\n", fn.Name)
-	fmt.Println("====collect entry end====")
-
-}
-
-func CollectEnd(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) {
-
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered. Error:\n", r)
-		}
-	}()
-
-	fn := bi.PCToFunc(ctx.FnAddr)
-
-	fmt.Println("====collect end start====")
-	fmt.Printf("====F:%s ============\n", fn.Name)
-
-	fmt.Printf("Start parent goid: %d,goid: %d\n", ctx.ParentGoroutineId, ctx.GoroutineId)
-	variables, err := GetVariablesFromCtx(fn, ctx, bi, true)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	for _, v := range variables {
-		v.LoadValue(LoadFullValue)
-		PrintV("", *v)
-	}
-	fmt.Printf("====F:%s ============\n", fn.Name)
-	fmt.Println("====collect end end====")
-	TraceDefer(ctx, variables)
-	event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, event.VariableTypeReturnValue, variables))
+	return fn.Name, variables
 }
