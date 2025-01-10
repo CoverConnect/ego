@@ -3,9 +3,10 @@ module github.com/CoverConnect/ego
 go 1.22.5
 
 require (
-	github.com/backman-git/delve v0.0.1
+	github.com/backman-git/delve v0.0.1-alpha
 	github.com/cilium/ebpf v0.16.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/spf13/viper v1.19.0
 	go.opentelemetry.io/otel v1.30.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.30.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.30.0
@@ -30,7 +31,6 @@ require (
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.19.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.opentelemetry.io/otel/metric v1.30.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
