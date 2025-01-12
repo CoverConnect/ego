@@ -20,12 +20,28 @@ import (
 var CtxChan chan hookFunctionParameterListT = make(chan hookFunctionParameterListT, 100)
 
 func GetFunctionByPrefix(bi *proc.BinaryInfo, prefix string) []*proc.Function {
-	fns := make([]*proc.Function, 0)
-	for _, f := range bi.Functions {
-		if strings.HasPrefix(f.Name, prefix) {
-			fns = append(fns, &f)
-		}
 
+	if len(prefix) == 0 {
+		return []*proc.Function{}
+	}
+
+	fns := make([]*proc.Function, 0)
+
+	// $ sign in the end of the prefix means exact match.
+	// TODO speed up this part if needed
+	if prefix[len(prefix)-1] == '$' {
+		funcSingature := prefix[:len(prefix)-1]
+		for _, f := range bi.Functions {
+			if funcSingature == f.Name {
+				fns = append(fns, &f)
+			}
+		}
+	} else {
+		for _, f := range bi.Functions {
+			if strings.HasPrefix(f.Name, prefix) {
+				fns = append(fns, &f)
+			}
+		}
 	}
 
 	return fns
