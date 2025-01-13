@@ -50,11 +50,17 @@ func deleteHandler(r *http.Request) {
 * function name
  */
 func Trace(sig string) {
-	instrument.GetInstrument().ProbeFunctionWithPrefix(sig)
-	instrument.GetInstrument().FunctionManager.Register(sig)
+	probedFuncs := instrument.GetInstrument().ProbeFunctionWithPrefix(sig)
+	for _, sig := range probedFuncs {
+		instrument.GetInstrument().FunctionManager.Register(sig)
+	}
+
 }
 
 func UnTrace(sig string) {
-	instrument.GetInstrument().UnProbeFunctionWithPrefix(sig)
-	instrument.GetInstrument().FunctionManager.UnregisterByName(sig)
+	unprobedFuncs := instrument.GetInstrument().UnProbeFunctionWithPrefix(sig)
+
+	for _, sig := range unprobedFuncs {
+		instrument.GetInstrument().FunctionManager.UnregisterByName(sig)
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"strings"
 
 	"github.com/CoverConnect/ego/internal"
 	"github.com/CoverConnect/ego/pkg/disassembler"
@@ -50,7 +51,7 @@ type Instrument struct {
 	bi      *proc.BinaryInfo
 	ex      *link.Executable
 
-	userProbes map[string][]*userProbe // function prefix -> userProbe
+	userProbes map[string]*userProbe // function prefix -> userProbe
 
 	binaryPath      string
 	FunctionManager *internal.FunctionManager
@@ -91,7 +92,7 @@ func NewInstrument(binaryPath string) *Instrument {
 		log.Fatalf("open exec fail %w", err)
 	}
 
-	return &Instrument{bi: bi, binaryPath: binaryPath, hookObj: &hookObj, ex: ex, FunctionManager: internal.NewFunctionManager()}
+	return &Instrument{bi: bi, binaryPath: binaryPath, hookObj: &hookObj, ex: ex, FunctionManager: internal.NewFunctionManager(), userProbes: make(map[string]*userProbe)}
 }
 
 func GetInstrument() *Instrument {
@@ -112,53 +113,54 @@ func (i Instrument) Start() error {
 
 func (i Instrument) Stop() {
 
-	for _, probes := range i.userProbes {
-		for _, probe := range probes {
-			probe.start.Close()
-			for _, endProbe := range probe.end {
-				endProbe.Close()
-			}
+	for _, probe := range i.userProbes {
+		probe.start.Close()
+		for _, endProbe := range probe.end {
+			endProbe.Close()
 		}
+
 	}
 
 	defer i.hookObj.Close()
 
 }
 
-func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
+func (i *Instrument) ProbeFunctionWithPrefix(prefix string) []string {
+
+	probedFuncs := make([]string, 0)
+
 	// TODO move to instrument type
 	goidOffset, err := getGoIDOffset(i.bi)
 	if err != nil {
 		slog.Debug("%+v\n", err)
-		return
+		return probedFuncs
 	}
 
 	parentGoidOffset, err := getParentIDOffset(i.bi)
 	if err != nil {
 		slog.Debug("%+v\n", err)
-		return
+		return probedFuncs
 	}
 
 	// heavy depend on the platform
 	gOffset, err := i.bi.GStructOffset(nil)
 	if err != nil {
 		slog.Debug("%+v\n", err)
-		return
+		return probedFuncs
 	}
 
 	// Probe the function with all signature
-	userProbes := make(map[string][]*userProbe)
 	for _, f := range GetFunctionByPrefix(i.bi, prefix) {
 
 		params, err := GetFunctionParameter(i.bi, f, f.Entry, false)
 		if err != nil {
 			slog.Debug("Can't get params of function args", "error", err)
-			return
+			continue
 		}
 
 		if err := sendParamToHook(i.hookObj, f.Entry, params, goidOffset, parentGoidOffset, gOffset, false); err != nil {
 			slog.Debug("send param to ebpf", "error", err)
-			return
+			continue
 		}
 
 		// uprobe to function (trace)
@@ -177,7 +179,6 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 		instructions, err := disassembler.Decode(f.Entry, f.End)
 		if err != nil {
 			slog.Debug("Decode Function", "Error", err)
-			userProbes[prefix] = append(userProbes[prefix], userProbe)
 			continue
 		}
 
@@ -205,24 +206,53 @@ func (i *Instrument) ProbeFunctionWithPrefix(prefix string) {
 			end, err := i.ex.Uprobe(f.Name, i.hookObj.UprobeHook, &link.UprobeOptions{Offset: off})
 			if err != nil {
 				slog.Debug("set uretprobe", "error", err)
-				return
+				continue
 			}
 			userProbe.end = append(userProbe.end, end)
 			slog.Debug("set uretprobe:", "fname", f.Name, "addr", addr, "offset", off)
 
 		}
-		userProbes[prefix] = append(userProbes[prefix], userProbe)
+		i.userProbes[f.Name] = userProbe
+		probedFuncs = append(probedFuncs, f.Name)
 	}
-	i.userProbes = userProbes
+
+	return probedFuncs
 }
 
-func (i *Instrument) UnProbeFunctionWithPrefix(prefix string) {
-	for _, probe := range i.userProbes[prefix] {
-		probe.start.Close()
-		for _, endProbe := range probe.end {
-			endProbe.Close()
+func (i *Instrument) UnProbeFunctionWithPrefix(prefix string) []string {
+	unprobedFuncs := make([]string, 0)
+
+	if len(prefix) == 0 {
+		return unprobedFuncs
+	}
+
+	// TODO current we use sequential search on the key set, maybe can use trie to speed up
+	if prefix[len(prefix)-1] == '$' {
+		funcSingature := prefix[:len(prefix)-1]
+		for fName, probeRef := range i.userProbes {
+			if fName == funcSingature {
+				unprobedFuncs = append(unprobedFuncs, fName)
+				probeRef.start.Close()
+				for _, endProbe := range probeRef.end {
+					endProbe.Close()
+				}
+				delete(i.userProbes, fName)
+			}
+		}
+	} else {
+		for fName, probeRef := range i.userProbes {
+			if strings.HasPrefix(fName, prefix) {
+				unprobedFuncs = append(unprobedFuncs, fName)
+				probeRef.start.Close()
+				for _, endProbe := range probeRef.end {
+					endProbe.Close()
+				}
+				delete(i.userProbes, fName)
+			}
 		}
 	}
+
+	return unprobedFuncs
 }
 
 func getRelatedOffset(a, b uint64) uint64 {
