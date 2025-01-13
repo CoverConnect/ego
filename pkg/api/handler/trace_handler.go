@@ -50,6 +50,13 @@ func deleteHandler(r *http.Request) {
 * function name
  */
 func Trace(sig string) {
+
+	IsRegisted := instrument.GetInstrument().FunctionManager.IsPatternRegisted(sig)
+
+	if IsRegisted {
+		return
+	}
+
 	probedFuncs := instrument.GetInstrument().ProbeFunctionWithPrefix(sig)
 	for _, sig := range probedFuncs {
 		instrument.GetInstrument().FunctionManager.Register(sig)

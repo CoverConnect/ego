@@ -1,5 +1,7 @@
 package internal
 
+import "strings"
+
 type FunctionManager struct {
 	functions map[string]*Function
 }
@@ -31,4 +33,16 @@ func (fm *FunctionManager) UnregisterByName(name string) {
 		return
 	}
 	delete(fm.functions, name)
+}
+
+// TODO: Refactor this one with trie, consider better implementation
+func (fm *FunctionManager) IsPatternRegisted(pattern string) bool {
+
+	for k, _ := range fm.functions {
+		if strings.HasPrefix(k, pattern) {
+			return true
+		}
+	}
+
+	return false
 }
