@@ -24,6 +24,7 @@ const (
 	LOG_LEVEL  = slog.LevelDebug
 	LOG_ARG    = true
 	LOG_RETURN = true
+	LOG_METRIC = true
 )
 
 var (

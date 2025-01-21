@@ -8,6 +8,7 @@ import (
 	"log/slog"
 
 	. "github.com/CoverConnect/ego/pkg/config"
+	"github.com/CoverConnect/ego/pkg/dmetric"
 	"github.com/CoverConnect/ego/pkg/event"
 	"github.com/backman-git/delve/pkg/proc"
 	"github.com/cilium/ebpf"
@@ -94,6 +95,28 @@ func CollectEntry(bi *proc.BinaryInfo, ctx hookFunctionParameterListT) (string, 
 		}
 		// send to ws
 		event.GetVariableChangeEventBus().EmitEvent(event.NewVariableChangeEvent(fn.Name, event.VariableTypeArgument, variables))
+	}
+
+	if LOG_METRIC {
+		slog.Debug("collect metric", "func", fn.Name)
+		dmetric.Manager.CountHit(fn.Name)
+
+		/*
+			for _, v := range variables {
+
+				switch v.Kind {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					//TODO need to support float
+					intV, err := strconv.Atoi(v.Value.String())
+					if err != nil {
+						slog.Debug("convert to int failed", "error", err)
+						continue
+					}
+					dmetric.Manager.SetArgumentGauge(fn.Name, v.Name, intV)
+				}
+
+			}
+		*/
 	}
 
 	return fn.Name, variables
