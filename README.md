@@ -1,57 +1,50 @@
 # Ego
 ![Ego Logo](https://codeeras.gallerycdn.vsassets.io/extensions/codeeras/ego-go/1.2.0/1738078515541/Microsoft.VisualStudio.Services.Icons.Small)
 
-## Project Description
+
+This extension provides a user interface for [EGO](https://github.com/CoverConnect/ego), a Golang non-stop debugging library.
+
+# Purpose
 Ego is a dynamic debugging library designed to help developers troubleshoot production issues with minimal performance impact. 
 It enables real-time monitoring and logging of function arguments and return values with only the library imported. 
-Ego is designed to be lightweight and easy to integrate into existing projects, providing powerful debugging capabilities without significant overhead.
 
-## Features
-- Dynamic logging, tracing and monitoring
-
-
-## Usage
-### Import Package from Package main
-
-Example:
-```go
-package main
-
-import (
-	"fmt"
-	"math/rand"
-	"time"
-
-	_ "github.com/CoverConnect/ego/cmd/ego"
-)
-
-func main() {
-	
-
-	go func() {
-		for {
-			v := rand.Intn(10)
-			v2 := rand.Intn(10)
-			simpleInt(v, v2)
-			time.Sleep(3 * time.Second)
-		}
-	}()
-
-	for {
-		fmt.Print(".")
-		time.Sleep(10 * time.Second)
-	}
-}
-```
-
-### Use Ego VScode Extension
-
-Download the Plugin [ego](https://marketplace.visualstudio.com/items?itemName=CodeEras.ego-go&ssr=false#overview)
+# Features
+- **Non-stop LogPoint**: Set breakpoints without stopping the application.
+- **Function level Tracing**: Trace specific functions to monitor their execution. (<span style="color: purple;">Under Construction</span>)
+- **Package Tracing**: Trace entire packages to get a comprehensive view of the application's behavior.
+- **Dynamic Log View**: View logs dynamically in a webview.
+- **Trace Backend Connection**: Connect to a trace backend to visualize and analyze traces.
 
 
-## License
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/CoverConnect/ego/blob/main/LICENSE) file for details.
+# Getting Started
+### 1. **Import the ego instrument library**
+  ```go
+  import (
+    "math/rand"
+    "time"
 
-## Contact
-For any inquiries or support, please raise an issue.
+    _ "github.com/CoverConnect/ego/cmd/ego"
+  )
+  ```
+
+### 2. **Install the Extension**
+ Install the [EGO extension](https://marketplace.visualstudio.com/items?itemName=CodeEras.ego-go) from the VS Code marketplace.
+
+
+### 3. Set a function argument logpoint
+
+![Ego logpoint](https://raw.githubusercontent.com/backman-git/ego-resource/refs/heads/main/demo.gif)
+
+
+
+
+
+
+## Commands
+
+- `EGO: Show Trace View`: Show the trace view panel. (<span style="color: purple;">Under Construction</span>)
+- `EGO: Refresh Trace Backend`: Refresh the trace backend view. (<span style="color: purple;">Under Construction</span>)
+- `EGO: Connect Trace Backend`: Connect to a trace backend. (<span style="color: purple;">Under Construction</span>)
+- `EGO: Refresh Process View`: Refresh the traced process view.
+- `EGO: Refresh Function View`: Refresh the traced functions view.
 
